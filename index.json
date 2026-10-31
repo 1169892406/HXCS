@@ -11,10 +11,10 @@
     {
       "plugin_id": "homex.weather_msn",
       "name": "MSN 天气",
-      "version": "1.2.2",
+      "version": "1.2.3",
       "type": "prebuilt",
       "description": "MSN 天气数据源：实时天气 + 逐小时 + 每日预报，自动定位或手动选城市。",
-      "package_url": "plugins/msn-weather/releases/homex.weather_msn-1.2.2.hpkg",
+      "package_url": "plugins/msn-weather/releases/homex.weather_msn-1.2.3.hpkg",
       "source_repo": "https://github.com/1169892406/hx_msn_weather",
       "license": "MIT",
       "publisher": {
@@ -25,7 +25,7 @@
         "network.outbound",
         "config.read"
       ],
-      "package_sha256": "187b3d7fea14b8f44c6e628da67d33ca9e533c70c6d095db2a6368b781b1db10"
+      "package_sha256": "71d3546f4632118c03b44b4fa6c4523a8156ce6b453ced68cda8dddc45536c6a"
     },
     {
       "plugin_id": "homex.xiaomi_miot",
