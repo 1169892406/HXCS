@@ -1,6 +1,6 @@
 {
   "registry_version": "1",
-  "updated_at": "2026-10-31T15:58:00Z",
+  "updated_at": "2026-10-31T22:10:00Z",
   "trust_root": {
     "key_id": "hxcs-community",
     "public_key_b64": "sIj14U1dua4pFbC9/PZN7ehtmI/ICHlO6CS1SMkMXbI=",
@@ -13,13 +13,70 @@
       "name": "示例·天气查询",
       "version": "1.0.0",
       "type": "prebuilt",
-      "description": "官方示例插件：演示如何用宿主 HTTP 资源做一次外部查询。作为社区插件的开发参考模板。",
+      "description": "官方示例插件：演示如何用宿主 HTTP 资源做一次外部查询。",
       "package_url": "plugins/demo-weather/releases/demo-weather-1.0.0.hpkg",
       "source_repo": "https://github.com/homex-community/demo-weather",
       "license": "MIT",
-      "publisher": { "id": "homex-examples", "display_name": "HOMEX 示例" },
-      "permissions": ["network.outbound", "config.read"],
-      "package_sha256": "7259ed9e5838571751d02bbf948528bc0a37f10a0f0965b346a9bae8f35691cd"
+      "publisher": {
+        "id": "homex-examples",
+        "display_name": "HOMEX 示例"
+      },
+      "permissions": [
+        "network.outbound",
+        "config.read"
+      ],
+      "package_sha256": "61b01c6fe958cb5422e2c928fcc9a03a1137baa35fdba808df96bca51f1f2fef"
+    },
+    {
+      "plugin_id": "homex.weather_msn",
+      "name": "MSN 天气",
+      "version": "1.2.2",
+      "type": "prebuilt",
+      "description": "MSN 天气数据源：实时天气 + 逐小时 + 每日预报，自动定位或手动选城市。",
+      "package_url": "plugins/msn-weather/releases/homex.weather_msn-1.2.2.hpkg",
+      "source_repo": "https://github.com/1169892406/hx_msn_weather",
+      "license": "MIT",
+      "publisher": {
+        "id": "hx-community",
+        "display_name": "HX Community"
+      },
+      "permissions": [
+        "network.outbound",
+        "config.read"
+      ],
+      "package_sha256": "187b3d7fea14b8f44c6e628da67d33ca9e533c70c6d095db2a6368b781b1db10"
+    },
+    {
+      "plugin_id": "homex.xiaomi_miot",
+      "name": "HX-MI",
+      "version": "2.0.0-alpha.42",
+      "type": "prebuilt",
+      "description": "小米米家设备接入：账号登录、云端同步、局域网探测、多账号管理。",
+      "package_url": "plugins/hx-mi/releases/homex.xiaomi_miot-2.0.0-alpha.42.hpkg",
+      "source_repo": "https://github.com/1169892406/HX-MI",
+      "license": "MIT",
+      "publisher": {
+        "id": "hx-community",
+        "display_name": "HX Community"
+      },
+      "permissions": [
+        "network.outbound",
+        "network.datagram",
+        "network.mqtt",
+        "driver.register",
+        "secret.read",
+        "storage.read",
+        "storage.write",
+        "schedule.create",
+        "migration.read",
+        "cookie.ticket",
+        "secret.blob",
+        "migration.device_secret",
+        "config.read",
+        "event.publish",
+        "event.subscribe"
+      ],
+      "package_sha256": "c04fcd16cd0b28d8c348cb0ded0909f0bdb79eb75acfd2348569d0f13d061c32"
     }
   ]
 }
