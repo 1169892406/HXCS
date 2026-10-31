@@ -3,7 +3,7 @@
   "api_version": "2",
   "plugin_id": "homex.hxcs",
   "name": "HXCS 社区商店",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "type": "service_integration",
   "runtime": "wasm",
   "publisher": {
@@ -44,7 +44,7 @@
       "registry_url": {
         "type": "string",
         "format": "uri",
-        "default": "https://raw.githubusercontent.com/homex-community/hxcs-registry/main",
+        "default": "https://raw.githubusercontent.com/1169892406/HXCS/main",
         "title": "注册表地址",
         "description": "社区插件索引的 base URL（index.json 所在目录）。"
       },
