@@ -1,0 +1,25 @@
+{
+  "registry_version": "1",
+  "updated_at": "2026-10-31T15:58:00Z",
+  "trust_root": {
+    "key_id": "hxcs-community",
+    "public_key_b64": "sIj14U1dua4pFbC9/PZN7ehtmI/ICHlO6CS1SMkMXbI=",
+    "algorithm": "ed25519",
+    "fingerprint": "a7376a3d1a8522a8"
+  },
+  "plugins": [
+    {
+      "plugin_id": "homex.example.demo_weather",
+      "name": "示例·天气查询",
+      "version": "1.0.0",
+      "type": "prebuilt",
+      "description": "官方示例插件：演示如何用宿主 HTTP 资源做一次外部查询。作为社区插件的开发参考模板。",
+      "package_url": "plugins/demo-weather/releases/demo-weather-1.0.0.hpkg",
+      "source_repo": "https://github.com/homex-community/demo-weather",
+      "license": "MIT",
+      "publisher": { "id": "homex-examples", "display_name": "HOMEX 示例" },
+      "permissions": ["network.outbound", "config.read"],
+      "package_sha256": "7259ed9e5838571751d02bbf948528bc0a37f10a0f0965b346a9bae8f35691cd"
+    }
+  ]
+}
