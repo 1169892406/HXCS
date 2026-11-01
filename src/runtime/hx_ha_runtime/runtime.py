@@ -9,13 +9,55 @@ from typing import Any
 from .core import HomeAssistant
 from .entity import EntityPlatform
 from .errors import DuplicateEntry, IntegrationSetupError
-from .flow import ConfigFlow
+from .flow import AbortFlow, ConfigFlow
 from .loader import inspect_package, load_package
 from .mapping import project_entity
 from .models import ConfigEntry, EntryState
 from .network import ControlledSession, NetworkPolicy
 from .registry import RegistryStore
 from .security import CredentialVault, split_secrets
+
+
+
+def _pick_config_flow(module, domain: str):
+    """从集成模块里挑出 ConfigFlow 子类。
+
+    # ## 不能写死 getattr(module, "ConfigFlow")（2026-11-01 实测）
+
+    HA 的约定是「集成自己命名一个 ConfigFlow 子类」，名字通常带集成前缀
+    （midea_ac_lan 是 `MideaLanConfigFlow`）。真实 HA 靠 config_entries 的
+    注册表按 domain 找到它；我们的兼容层没有那套注册表，所以按下面顺序找：
+      ① 名字里含集成前缀的 ConfigFlow 子类（最常见）
+      ② 任何 ConfigFlow 子类
+      ③ 兜底才是模块里那个名叫 ConfigFlow 的（可能是 import 进来的基类）
+    """
+    from homeassistant.config_entries import ConfigFlow as BaseFlow
+
+    candidates = []
+    for name, obj in vars(module).items():
+        if not isinstance(obj, type) or obj is BaseFlow:
+            continue
+        try:
+            if not issubclass(obj, BaseFlow):
+                continue
+        except TypeError:
+            continue
+        # 排除从其它模块 import 进来的
+        if getattr(obj, "__module__", "") != module.__name__:
+            continue
+        candidates.append((name, obj))
+
+    # ① 名字里沾 domain 的片段
+    domain_parts = [p for p in domain.split("_") if p]
+    for name, obj in candidates:
+        low = name.lower()
+        if all(p in low for p in domain_parts):
+            return obj
+    # ② 第一个子类
+    if candidates:
+        return candidates[0][0] and candidates[0][1]
+    # ③ 兜底
+    return getattr(module, "ConfigFlow")
 
 
 class IntegrationRuntime:
@@ -54,10 +96,14 @@ class IntegrationRuntime:
     async def run_config_flow(self, domain: str, user_input: dict[str, Any] | None = None, step: str = "user"):
         package, _ = self.integrations[domain]
         flow_module = __import__(f"{package.module_name}.config_flow", fromlist=["ConfigFlow"])
-        flow_cls = getattr(flow_module, "ConfigFlow")
+        flow_cls = _pick_config_flow(flow_module, domain)
         flow: ConfigFlow = flow_cls()
         flow.hass = self.hass
-        result = await getattr(flow, f"async_step_{step}")(user_input)
+        try:
+            result = await getattr(flow, f"async_step_{step}")(user_input)
+        except AbortFlow as exc:
+            # 集成主动终止（already_configured / single_instance_allowed 等）
+            return {"type": "abort", "reason": exc.reason}
         if result.get("type") == "create_entry":
             unique = result.get("unique_id")
             if unique and any(e.domain == domain and e.unique_id == unique for e in self.entries.values()):

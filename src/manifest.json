@@ -3,7 +3,7 @@
   "api_version": "2",
   "plugin_id": "homex.hxcs",
   "name": "HXCS 社区商店",
-  "version": "2.1.0",
+  "version": "2.3.7",
   "type": "service_integration",
   "runtime": "python",
   "publisher": {
@@ -97,6 +97,9 @@
       },
       {
         "name": "integrations_list"
+      },
+      {
+        "name": "integration_install"
       }
     ]
   }

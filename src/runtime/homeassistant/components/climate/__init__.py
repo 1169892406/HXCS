@@ -1,23 +1,7 @@
-from enum import IntFlag
+"""最小 climate 组件兼容层（HXCS HA 运行时）。"""
+from __future__ import annotations
 
-from hx_ha_runtime.entity import Entity
-
-DOMAIN = "climate"
-
-
-class ClimateEntityFeature(IntFlag):
-    TARGET_TEMPERATURE = 1
-    TARGET_TEMPERATURE_RANGE = 2
-    TARGET_HUMIDITY = 4
-    FAN_MODE = 8
-    PRESET_MODE = 16
-    SWING_MODE = 32
-    AUX_HEAT = 64
-    TURN_OFF = 128
-    TURN_ON = 256
-
-
-class HVACMode(str):
+class HVACMode:
     OFF = "off"
     HEAT = "heat"
     COOL = "cool"
@@ -26,6 +10,28 @@ class HVACMode(str):
     DRY = "dry"
     FAN_ONLY = "fan_only"
 
-
-class ClimateEntity(Entity):
+class ClimateEntity:
     pass
+
+class ClimateEntityFeature:
+    TARGET_TEMPERATURE = "target_temperature"
+    TARGET_TEMPERATURE_RANGE = "target_temperature_range"
+    TARGET_HUMIDITY = "target_humidity"
+    FAN_MODE = "fan_mode"
+    PRESET_MODE = "preset_mode"
+    SWING_MODE = "swing_mode"
+    AUX_HEAT = "aux_heat"
+    TURN_ON = "turn_on"
+    TURN_OFF = "turn_off"
+
+ATTR_TEMPERATURE = "temperature"
+ATTR_HVAC_MODE = "hvac_mode"
+ATTR_FAN_MODE = "fan_mode"
+ATTR_SWING_MODE = "swing_mode"
+ATTR_SWING_HORIZONTAL_MODE = "swing_horizontal_mode"
+ATTR_PRESET_MODE = "preset_mode"
+DEFAULT_MIN_TEMP = "default_min_temp"
+DEFAULT_MAX_TEMP = "default_max_temp"
+DEFAULT_MIN_HUMIDITY = "default_min_humidity"
+DEFAULT_MAX_HUMIDITY = "default_max_humidity"
+__all__ = [n for n in dir() if not n.startswith('_')]

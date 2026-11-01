@@ -19,6 +19,19 @@ class Context:
 
 
 @dataclass(slots=True)
+class Event:
+    """HA 的 Event：事件总线上的一个事件对象。"""
+    event_type: str
+    data: dict = None
+    context: Context = None
+    time_fired: float = 0.0
+
+    def __post_init__(self):
+        if self.data is None:
+            self.data = {}
+
+
+@dataclass(slots=True)
 class State:
     entity_id: str
     state: str

@@ -1,0 +1,73 @@
+"""最小 number 组件兼容层（HXCS HA 运行时）。"""
+from __future__ import annotations
+
+class NumberDeviceClass:
+    ABSOLUTE_HUMIDITY = "absolute_humidity"
+    APPARENT_POWER = "apparent_power"
+    APPARENT_TEMPERATURE = "apparent_temperature"
+    AQI = "aqi"
+    ATMOSPHERIC_PRESSURE = "atmospheric_pressure"
+    BATTERY = "battery"
+    BLOOD_GLUCOSE_CONCENTRATION = "blood_glucose_concentration"
+    CO2 = "co2"
+    CO_CONCENTRATION = "co_concentration"
+    CONDUCTIVITY = "conductivity"
+    CURRENT = "current"
+    DATA_RATE = "data_rate"
+    DATA_SIZE = "data_size"
+    DISTANCE = "distance"
+    DURATION = "duration"
+    ENERGY = "energy"
+    ENERGY_DISTANCE = "energy_distance"
+    ENERGY_STORAGE = "energy_storage"
+    FREQUENCY = "frequency"
+    GAS = "gas"
+    HUMIDITY = "humidity"
+    ILLUMINANCE = "illuminance"
+    IRRADIANCE = "irradiance"
+    MOISTURE = "moisture"
+    MONETARY = "monetary"
+    NITROGEN_DIOXIDE = "nitrogen_dioxide"
+    NITROGEN_MONOXIDE = "nitrogen_monoxide"
+    NITROUS_OXIDE = "nitrous_oxide"
+    OZONE = "ozone"
+    PH = "ph"
+    PM1 = "pm1"
+    PM10 = "pm10"
+    PM25 = "pm25"
+    POWER = "power"
+    POWER_FACTOR = "power_factor"
+    PRECIPITATION = "precipitation"
+    PRECIPITATION_INTENSITY = "precipitation_intensity"
+    PRESSURE = "pressure"
+    REACTIVE_ENERGY = "reactive_energy"
+    REACTIVE_POWER = "reactive_power"
+    SIGNAL_STRENGTH = "signal_strength"
+    SOUND_PRESSURE = "sound_pressure"
+    SPEED = "speed"
+    SULPHUR_DIOXIDE = "sulphur_dioxide"
+    TEMPERATURE = "temperature"
+    TEMPERATURE_DELTA = "temperature_delta"
+    VOLATILE_ORGANIC_COMPOUNDS = "volatile_organic_compounds"
+    VOLATILE_ORGANIC_COMPOUNDS_PARTS = "volatile_organic_compounds_parts"
+    VOLTAGE = "voltage"
+    VOLUME = "volume"
+    VOLUME_FLOW_RATE = "volume_flow_rate"
+    VOLUME_STORAGE = "volume_storage"
+    WATER = "water"
+    WEIGHT = "weight"
+    WIND_DIRECTION = "wind_direction"
+    WIND_SPEED = "wind_speed"
+
+class NumberMode:
+    AUTO = "auto"
+    BOX = "box"
+    SLIDER = "slider"
+
+class RestoreNumber:
+    pass
+
+class NumberEntity:
+    pass
+
+__all__ = [n for n in dir() if not n.startswith('_')]
