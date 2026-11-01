@@ -58,6 +58,24 @@
         "event.subscribe"
       ],
       "package_sha256": "ea2552e4d0e67e78ea8a0fee830fb1487746e836bdf2e6f301a39b2f8b2573c1"
+    },
+    {
+      "plugin_id": "midea_ac_lan",
+      "name": "Midea AC LAN",
+      "version": "2026.10.0",
+      "type": "ha_integration",
+      "description": "美的空调局域网控制集成：自动发现或手动添加设备，支持空调/风扇/灯光/加湿器等实体，无需云端。",
+      "package_url": "plugins/midea-ac-lan/releases/midea_ac_lan-2026.10.0.zip",
+      "source_repo": "https://github.com/wuwentao/midea_ac_lan",
+      "license": "MIT",
+      "publisher": {
+        "id": "hx-community",
+        "display_name": "HX Community"
+      },
+      "permissions": [
+        "network.lan"
+      ],
+      "package_sha256": "0b1e335bdd9a2a1fd488f55b02965da77ac37053de263c6c702c67800075fa50"
     }
   ]
 }
