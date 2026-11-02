@@ -379,6 +379,24 @@ class HxcsWorker:
                     "config_flow": mf.get("config_flow", False),
                     "path": str(d),
                 })
+        # ## 补 GitHub 星数（用户 2026-11-02）
+        #
+        # 本地集成目录里没有星数——它只存在于注册表 index.json 的条目上。
+        # 卡片要显示"这个集成的 GitHub 仓库有多少星"，所以这里顺手读一次
+        # 注册表把 github_stars 合进来。读失败就当 0（不阻塞列表）。
+        try:
+            reg_url = self.registry_url.rstrip("/") + "/index.json"
+            raw = self._http_get(reg_url, max_bytes=1 << 20)
+            reg = json.loads(raw)
+            stars = {p.get("plugin_id"): p.get("github_stars", 0)
+                     for p in reg.get("plugins", [])}
+            for item in result["available"]:
+                if item["domain"] in stars:
+                    item["github_stars"] = stars[item["domain"]]
+        except Exception:
+            for item in result["available"]:
+                item.setdefault("github_stars", 0)
+
         # 已加载的：优先看 entries（已 setup 的 config entry）；
         # 没有 entry 的看 runtime.installed（install 后已注册但还没配设备的）
         if self.runtime:
