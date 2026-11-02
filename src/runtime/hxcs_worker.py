@@ -88,6 +88,7 @@ def _bootstrap_vendor() -> None:
 _bootstrap_vendor()
 
 import asyncio
+import time
 import base64
 import hashlib
 import json
@@ -240,8 +241,12 @@ class HxcsWorker:
 
     # —— HTTP 工具（Python 直连，不走宿主 session）—————————————————
 
-    def _http_get(self, url: str, max_bytes: int = 32 * 1024 * 1024) -> bytes:
-        req = urllib.request.Request(url, headers={"Accept": "application/json"})
+    def _http_get(self, url: str, max_bytes: int = 32 * 1024 * 1024,
+                  extra_headers: dict[str, str] | None = None) -> bytes:
+        headers = {"Accept": "application/json"}
+        if extra_headers:
+            headers.update(extra_headers)
+        req = urllib.request.Request(url, headers=headers)
         # 代理支持
         proxy = str(self._cfg("proxy_url", ""))
         handlers = []
@@ -291,6 +296,23 @@ class HxcsWorker:
         url = self.registry_url.rstrip("/") + "/index.json"
         body = self._http_get(url, max_bytes=1 << 20)
         idx = json.loads(body)
+
+        # ## 星数：60 分钟刷一次（用户 2026-11-02 定稿）
+        #
+        # 缓存命中时是毫秒级（读内存/磁盘）；只有满 60 分钟才真的调 GitHub，
+        # 那一次会慢 2~5 秒（4 个仓库串行）。用户接受这个代价，
+        # 换来"星数与 GitHub 一致"。
+        try:
+            self._refresh_github_stars()
+            live = getattr(self, "_gh_stars", {}) or {}
+            if live:
+                for p in idx.get("plugins", []):
+                    pid = p.get("plugin_id")
+                    if pid in live:
+                        p["github_stars"] = live[pid]
+        except Exception:
+            pass  # 失败保留注册表原值
+
         # ha_compat 关闭时过滤 HA 集成包
         if not self.ha_compat_enabled:
             idx["plugins"] = [p for p in idx.get("plugins", []) if p.get("type") != "ha_integration"]
@@ -379,17 +401,29 @@ class HxcsWorker:
                     "config_flow": mf.get("config_flow", False),
                     "path": str(d),
                 })
-        # ## 补 GitHub 星数（用户 2026-11-02）
+        # ## GitHub 星数自动刷新（用户 2026-11-02）
         #
-        # 本地集成目录里没有星数——它只存在于注册表 index.json 的条目上。
-        # 卡片要显示"这个集成的 GitHub 仓库有多少星"，所以这里顺手读一次
-        # 注册表把 github_stars 合进来。读失败就当 0（不阻塞列表）。
+        # 注册表里的 github_stars 是**维护者填的静态值**，不会自己变。
+        # 但仓库涨星是持续发生的，用户希望"看到的星数和 GitHub 一致"。
+        # 所以这里直连 GitHub API 查一次真值，缓存 30 分钟（避免打爆
+        # 未认证的 60 次/小时限流），失败就回落到注册表里的静态值。
+        #   · 缓存文件：<持久化>/github-stars.json
+        #   · TTL：30 分钟
+        #   · 无 token 时 60 次/小时限流 → 30 分钟一次是安全的
+        # ## 补 GitHub 星数（用户 2026-11-02：60 分钟刷新一次，不用 token）
+        try:
+            self._refresh_github_stars()
+            live = getattr(self, "_gh_stars", {}) or {}
+        except Exception:
+            live = {}
         try:
             reg_url = self.registry_url.rstrip("/") + "/index.json"
             raw = self._http_get(reg_url, max_bytes=1 << 20)
             reg = json.loads(raw)
-            stars = {p.get("plugin_id"): p.get("github_stars", 0)
-                     for p in reg.get("plugins", [])}
+            stars = {
+                p.get("plugin_id"): live.get(p.get("plugin_id"), p.get("github_stars", 0))
+                for p in reg.get("plugins", [])
+            }
             for item in result["available"]:
                 if item["domain"] in stars:
                     item["github_stars"] = stars[item["domain"]]
@@ -555,6 +589,87 @@ class HxcsWorker:
             except Exception as e:  # noqa: BLE001
                 errors.append(f"{d.name}: {e}")
         return loaded, errors
+
+    # ## GitHub 星数刷新（用户 2026-11-02 定稿）
+    #
+    # 用户明确：不用他的 token，按未认证的 60 次/小时限流来，缓存 60 分钟。
+    #   · 每次使用 4~5 个 API 调用（每个仓库一次）
+    #   · 60 分钟一次 → 5 次/小时，远低于 60 次限额
+    #   · 缓存落盘，进程重启后仍然有效
+    #   · 失败静默回落注册表静态值（不影响任何业务）
+    GITHUB_STARS_TTL = 60 * 60  # 60 分钟
+
+    def _refresh_github_stars(self) -> None:
+        """从 GitHub API 拉星数（无 token，60 分钟缓存）。
+
+        设计约束（用户 2026-11-02）：
+          · 绝不使用用户的 token（不入配置、不入请求头）
+          · 未认证限流 60 次/小时；一次刷新 4~5 次调用，
+            60 分钟一轮 = 5 次/小时，安全余量充足
+          · 失败不改星数（保留注册表静态值），不阻塞业务
+        """
+        now = time.time()
+        if now - getattr(self, "_gh_stars_at", 0.0) < self.GITHUB_STARS_TTL:
+            return
+
+        cache_path = self._stars_cache_path()
+        # 磁盘缓存新鲜 → 直接用，不打 API
+        if cache_path and cache_path.is_file():
+            try:
+                data = json.loads(cache_path.read_text(encoding="utf-8"))
+                if now - float(data.get("at", 0)) < self.GITHUB_STARS_TTL:
+                    self._gh_stars = data.get("stars", {})
+                    self._gh_stars_at = float(data.get("at", 0))
+                    return
+            except Exception:
+                pass
+
+        try:
+            repos = self._registry_repos()
+        except Exception:
+            return
+        fresh: dict[str, int] = {}
+        for plugin_id, repo in repos.items():
+            owner_repo = repo.replace("https://github.com/", "").rstrip("/")
+            if "/" not in owner_repo:
+                continue
+            try:
+                body = self._http_get(
+                    f"https://api.github.com/repos/{owner_repo}",
+                    max_bytes=1 << 20,
+                )
+                meta = json.loads(body)
+                fresh[plugin_id] = int(meta.get("stargazers_count", 0))
+            except Exception:
+                continue
+        if fresh:
+            self._gh_stars = fresh
+            self._gh_stars_at = now
+            if cache_path:
+                try:
+                    cache_path.parent.mkdir(parents=True, exist_ok=True)
+                    cache_path.write_text(
+                        json.dumps({"at": now, "stars": fresh}, ensure_ascii=False),
+                        encoding="utf-8",
+                    )
+                except Exception:
+                    pass
+
+    def _stars_cache_path(self) -> "Path | None":
+        integ_dir = self._integrations_dir()
+        if integ_dir is None:
+            return None
+        return integ_dir.parent / "github-stars.json"
+
+    def _registry_repos(self) -> dict[str, str]:
+        url = self.registry_url.rstrip("/") + "/index.json"
+        raw = self._http_get(url, max_bytes=1 << 20)
+        reg = json.loads(raw)
+        return {
+            p["plugin_id"]: p["source_repo"]
+            for p in reg.get("plugins", [])
+            if p.get("source_repo")
+        }
 
     def _integrations_dir(self) -> "Path | None":
         """持久化 integrations 目录（跨版本保留）。"""
