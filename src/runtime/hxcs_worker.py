@@ -375,6 +375,7 @@ class HxcsWorker:
                     "domain": domain,
                     "name": mf.get("name", d.name),
                     "version": mf.get("version", ""),
+                    "description": mf.get("description", ""),
                     "config_flow": mf.get("config_flow", False),
                     "path": str(d),
                 })
@@ -471,6 +472,49 @@ class HxcsWorker:
             finally:
                 shutil.rmtree(tmp, ignore_errors=True)
 
+    def op_integration_remove(self, payload: dict[str, Any]) -> dict[str, Any]:
+        """卸载 HA 集成：删除已配置的 entry + 从 runtime 摘除 + 删除本地目录。
+
+        用户 2026-11-02：「安装后卡片没有和其他卡片一样显示没有卸载等」。
+        社区插件安装后能在已安装列表里停用/卸载，HA 集成也必须有对应入口。
+        """
+        self._require_ha()
+        self._accept_mutation()
+        domain = str(payload.get("domain", ""))
+        if not domain:
+            raise RuntimeError("缺少 domain")
+        # ## keep_files：停用 vs 卸载的分界（2026-11-02）
+        #
+        # 标准卡片的开关语义是"停用"（保留安装，只是不启动），
+        # 菜单里的「卸载」才是"删掉"。两者不能共用同一个动作——
+        # 否则用户点一下开关就把集成文件删了，装都装不回来。
+        #   keep_files=true  → 停用：从 runtime 摘除，本地文件保留
+        #   keep_files=false → 卸载：摘除 + 删文件
+        keep_files = bool(payload.get("keep_files", False))
+
+        removed_entries = []
+        # ① 摘掉该 domain 的所有 config entries
+        for entry_id in tuple(self.runtime.entries):
+            entry = self.runtime.entries[entry_id]
+            if getattr(entry, "domain", None) != domain:
+                continue
+            removed_entries.append(entry_id)
+            self.runtime.entries.pop(entry_id, None)
+        # ② 从 runtime.integrations 摘除（不重启 worker 也能立刻失效）
+        self.runtime.integrations.pop(domain, None)
+        # ③ 卸载才删本地目录；停用保留
+        integ_dir = self._integrations_dir()
+        target = integ_dir / domain if integ_dir is not None else None
+        if not keep_files and target is not None and target.is_dir():
+            import shutil
+            shutil.rmtree(target, ignore_errors=True)
+        return {
+            "domain": domain,
+            "removed_entries": removed_entries,
+            "path_deleted": bool(target and not target.exists()),
+            "disabled_only": keep_files,
+        }
+
     def _autoload_integrations(self) -> tuple[list[str], list[str]]:
         """把持久化目录里的集成全部 install 进 runtime。
 
@@ -511,7 +555,20 @@ class HxcsWorker:
         if not self.ha_compat_enabled:
             raise RuntimeError("HA 兼容未启用：请在 HXCS 配置页打开「兼容 HA 插件」")
         self._accept_mutation()
-        package = self.runtime.install(Path(payload["path"]))
+        # ## path 可以缺省（2026-11-02）——停用后再启用只需要 domain
+        #
+        # 前端标准卡片的开关是"启用/停用"，启用时只知道 domain。
+        # 这时从持久化目录找 <integrations>/<domain> 即可，不用前端拼路径。
+        raw_path = payload.get("path")
+        if not raw_path:
+            domain = str(payload.get("domain", ""))
+            if not domain:
+                raise RuntimeError("缺少 path 或 domain")
+            integ_dir = self._integrations_dir()
+            if integ_dir is None or not (integ_dir / domain).is_dir():
+                raise RuntimeError(f"集成 {domain} 不在本地（可能已卸载）")
+            raw_path = str(integ_dir / domain)
+        package = self.runtime.install(Path(raw_path))
         return {"domain": package.domain, "manifest": package.manifest}
 
     async def op_config_flow(self, payload: dict[str, Any]) -> dict[str, Any]:
