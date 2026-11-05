@@ -1,0 +1,264 @@
+/* =====================================================================================
+   HXCS 社区商店 —— 插件自带配置界面样式
+   -------------------------------------------------------------------------------------
+   这个文件被 `ui/index.html` 以**相对路径**引用。相对路径是必须的：iframe 的 src 形如
+   `.../plugins/homex.hxcs/ui-t/<ticket>/index.html`，票据在 **path 段**，而相对 URL
+   只继承 path、不继承 query ⇒ 样式/脚本的请求会自动带上同一枚票据（见平台侧
+   `pluginUiSource.ts` 的 pluginUiTicketSrc 注释）。写成 `/ui/style.css` 就会丢掉票据，
+   表现是"页面能出来但完全没样式"。
+
+   ## 为什么自己写一套，而不复用平台样式
+   平台 CSS 在另一个文档里（平台页面），iframe 是**不同源**的独立文档 —— 拿不到。
+   CSP 也只放行本路由下的资源（`style-src 'self' 'unsafe-inline'`）。
+   所以这里只复刻**视觉结构**（页头 + 分段卡片 + 开关 + 输入行），不假装能共享样式表。
+
+   ## 颜色策略
+   平台的 `--surface` / `--border` / `--ok` 等 token 在这个文档里不存在。这里给一组
+   与 HOMEX 深色主题**观感一致**的字面值（深底 + 低对比描边），并同时声明
+   `color-scheme: dark`，让原生控件（滚动条、输入框）也跟着走深色。
+
+   ## 硬约束（用户两次纠正过）
+   没有任何 `opacity:0` / `width:0` / `pointer-events:none` / `display:none` 用来
+   **藏操作入口**，也没有 `:hover` 才显形的规则。所有按钮、开关、输入框**常显**。
+   `.hidden` 这个工具类都没有定义 —— 从机制上就不给"把入口藏起来"留口子。
+   ===================================================================================== */
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  color-scheme: dark;
+}
+
+body {
+  /* 与平台深色主题同一族底色（#0a1627 系），但不引用它的变量 —— 不同文档，变量不流通。 */
+  background: #0a1627;
+  color: #e6edf5;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
+    'Hiragino Sans GB', 'Microsoft YaHei', system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.55;
+  padding: 20px 22px 36px;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 内容最大宽度：与平台的 .pcx（1080px 居中）同构，避免宽屏上一行拉太长。 */
+.wrap { max-width: 1080px; margin: 0 auto; }
+
+/* ------------------------------------------------------------------ 页头 */
+
+.hd {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 6px 0 10px;
+}
+
+.hd__icon {
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+  display: grid;
+  place-items: center;
+  font-size: 20px;
+  border-radius: 12px;
+  background: #0d1826;
+  border: 1px solid rgba(146, 176, 201, 0.16);
+}
+
+.hd__title { min-width: 0; flex: 1 1 240px; }
+.hd__title h1 { margin: 0; font-size: 19px; line-height: 1.3; font-weight: 650; }
+.hd__title p { margin: 3px 0 0; font-size: 13px; color: #8ea6bd; }
+
+/* 状态胶囊：与平台 .pcx__chip 同款（圆点 + 描边）。 */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  border: 1px solid rgba(146, 176, 201, 0.24);
+  background: #0d1826;
+  padding: 6px 12px;
+  font-size: 12px;
+  white-space: nowrap;
+  color: #b9cadb;
+}
+.chip i { width: 7px; height: 7px; border-radius: 50%; background: #8ea6bd; }
+.chip--ok { color: #58d68d; border-color: rgba(88, 214, 141, 0.4); }
+.chip--ok i { background: #58d68d; }
+.chip--bad { color: #ff7b72; border-color: rgba(255, 123, 114, 0.4); }
+.chip--bad i { background: #ff7b72; }
+
+/* ------------------------------------------------------------------ 按钮 */
+
+.btn {
+  font: inherit;
+  font-size: 13px;
+  border-radius: 10px;
+  border: 1px solid rgba(146, 176, 201, 0.28);
+  background: #0d1826;
+  color: #e6edf5;
+  padding: 8px 14px;
+  cursor: pointer;
+  /* 常显：不做任何 hover-only 显形。hover 只改观感，不改变"是否可见"。 */
+  transition: background-color 0.12s ease, border-color 0.12s ease;
+}
+.btn:hover { background: #12233a; border-color: rgba(146, 176, 201, 0.44); }
+.btn:focus-visible { outline: 2px solid #4f9cf9; outline-offset: 2px; }
+
+.btn--primary {
+  background: #1d4ed8;
+  border-color: #1d4ed8;
+  color: #ffffff;
+  font-weight: 600;
+}
+.btn--primary:hover { background: #2563eb; border-color: #2563eb; }
+
+/* 禁用态只表示"现在点不了"，**不是隐藏**：元素仍在文档流、仍可被读屏读到。 */
+.btn:disabled { opacity: 0.55; cursor: not-allowed; }
+.btn--primary:disabled { background: #1d4ed8; }
+
+/* ------------------------------------------------------------------ 分段与卡片 */
+
+.sec { margin-top: 26px; }
+
+.sec h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 650;
+  /* 标题前的蓝色竖线：与平台 .pcx__sec h3::before 同款（用户 2026-10-28 定的口径）。 */
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.sec h2::before {
+  content: '';
+  display: inline-block;
+  width: 3px;
+  height: 15px;
+  border-radius: 2px;
+  background: #036bfd;
+}
+.sec > p { margin: 6px 0 0; font-size: 13px; color: #8ea6bd; }
+
+.card {
+  margin-top: 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(146, 176, 201, 0.16);
+  background: #0d1826;
+  padding: 16px 18px;
+}
+
+.row1 { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.row1 b { font-size: 14px; font-weight: 640; }
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  border: 1px solid rgba(146, 176, 201, 0.24);
+  padding: 2px 9px;
+  font-size: 11.5px;
+  color: #9db2c8;
+  white-space: nowrap;
+}
+
+.desc { margin-top: 8px; font-size: 12.5px; color: #8ea6bd; line-height: 1.6; }
+
+/* 一行「说明 + 控件」：说明占满剩余宽度，控件贴右。 */
+.line {
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.lineL { min-width: 0; flex: 1 1 260px; display: grid; gap: 3px; }
+.lineL b { font-size: 13.5px; }
+.lineL i { font-style: normal; font-size: 12.5px; color: #8ea6bd; }
+
+/* ------------------------------------------------------------------ 开关 */
+
+/* role="switch" 的按钮：与平台 .pcx__switch 同构（轨道 + 圆钮）。 */
+.switch {
+  flex: 0 0 auto;
+  position: relative;
+  width: 42px;
+  height: 24px;
+  border-radius: 999px;
+  border: 1px solid rgba(146, 176, 201, 0.32);
+  background: #16273c;
+  cursor: pointer;
+  padding: 0;
+  transition: background-color 0.14s ease, border-color 0.14s ease;
+}
+.switch i {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #8ea6bd;
+  transition: transform 0.14s ease, background-color 0.14s ease;
+}
+.switch[aria-checked='true'] { background: #1d4ed8; border-color: #1d4ed8; }
+.switch[aria-checked='true'] i { transform: translateX(18px); background: #ffffff; }
+.switch:focus-visible { outline: 2px solid #4f9cf9; outline-offset: 2px; }
+.switch:disabled { opacity: 0.55; cursor: not-allowed; }
+
+/* ------------------------------------------------------------------ 输入行 */
+
+.row2 { margin-top: 12px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.row2 .input { flex: 1 1 300px; min-width: 0; }
+
+.input {
+  font: inherit;
+  font-size: 13px;
+  width: 100%;
+  border-radius: 10px;
+  border: 1px solid rgba(146, 176, 201, 0.24);
+  background: #0a1627;
+  color: #e6edf5;
+  padding: 9px 12px;
+}
+.input::placeholder { color: #5f7893; }
+.input:focus { outline: none; border-color: #4f9cf9; box-shadow: 0 0 0 2px rgba(79, 156, 249, 0.18); }
+.input:disabled { opacity: 0.55; cursor: not-allowed; }
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+
+/* ------------------------------------------------------------------ 提示条 */
+
+.note { margin-top: 10px; font-size: 12.5px; color: #9db2c8; word-break: break-word; }
+.note--ok { color: #58d68d; }
+.note--bad { color: #ff7b72; }
+
+.banner {
+  margin-top: 14px;
+  border-radius: 12px;
+  padding: 11px 14px;
+  font-size: 13px;
+  border: 1px solid transparent;
+}
+.banner--warn { background: rgba(210, 153, 34, 0.12); border-color: rgba(210, 153, 34, 0.38); color: #e9c46a; }
+.banner--err { background: rgba(255, 123, 114, 0.1); border-color: rgba(255, 123, 114, 0.36); color: #ff9a92; }
+.banner--info { background: rgba(79, 156, 249, 0.1); border-color: rgba(79, 156, 249, 0.34); color: #9cc7ff; }
+
+code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; color: #b9cadb; }
+
+/* 只读列表项（社区插件清单） */
+.item {
+  margin-top: 8px;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: baseline;
+  font-size: 12.5px;
+  color: #b9cadb;
+}
+.item .spacer { flex: 1 1 auto; }
+
+.muted { color: #8ea6bd; }
+.small { font-size: 12.5px; }

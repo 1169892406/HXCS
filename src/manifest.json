@@ -12,7 +12,8 @@
     "homepage": "https://homex.dev"
   },
   "entry": {
-    "python": "runtime/hxcs_worker.py"
+    "python": "runtime/hxcs_worker.py",
+    "ui": "ui/index.html"
   },
   "description": "HOMEX Community Store：社区插件商店 + HA 兼容运行时。安装后开启「社区插件」显示社区注册表中的第三方插件；开启「兼容 HA 插件」后可加载并运行 HA 风格集成包。单插件，无独立进程，无独立端口。",
   "permissions": [

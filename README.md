@@ -156,7 +156,21 @@ HXCS 在宿主平台的沙箱之上又加了三层：
 | `proxy_url` | string | 空 | HTTP 或 SOCKS5 代理地址，加速 GitHub 下载；留空直连 |
 | `network_allowed_hosts` | array | `[]` | HA 集成的出站宿主 allowlist；**空列表 = deny-all** |
 
-### 4.1 GitHub 星数刷新
+### 4.1 自带配置界面（entry.ui）
+
+HXCS 从 1.0.0 起**自带独立配置界面**（`entry.ui: "ui/index.html"`），不再依赖平台的
+通用表单。这意味着：
+
+- 配置页有完整的页头、分段卡片与交互（与语音识别配置页同构）
+- 带**「测试连通」按钮**：一键探测注册表地址是否可达
+- 带**社区状态展示**：实时显示注册表插件数、信任根指纹
+- 所有交互通过平台的 postMessage RPC 通道完成，**不需要为它改平台代码**
+
+> 界面的实现与安全约束见「六、目录结构」与仓库内 `src/ui/`。
+> 平台侧机制：插件在 `.hpkg` 里带 `ui/` 目录 + manifest 声明 `entry.ui`，平台自动发现
+> 并用 sandbox iframe 渲染（`allow-scripts`、无 `allow-same-origin`、CSP `connect-src 'none'`）。
+
+### 4.2 GitHub 星数刷新
 
 社区卡片上显示的星数来自 GitHub API 实时查询，**不使用任何 token**：
 
@@ -228,6 +242,10 @@ src/                                         HXCS 插件源码
 ├── manifest.json                            插件清单（runtime: python）
 ├── requirements.lock                        依赖锁（带 sha256，平台会校验）
 ├── BUILD.md                                 构建说明
+├── ui/                                      自带配置界面（entry.ui）
+│   ├── index.html                           页面骨架（页头 + 分段卡片）
+│   ├── app.js                               交互 + postMessage RPC（含 ping/pong）
+│   └── style.css                            样式（自实现，不依赖平台 CSS）
 └── runtime/
     ├── hxcs_worker.py                       主 Worker（社区商店 + HA 运行时）
     ├── hx_ha_runtime/                       HA 集成运行时（1043 行兼容层）

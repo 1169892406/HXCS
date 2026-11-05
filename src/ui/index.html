@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>HXCS 社区商店 · 配置</title>
+    <!--
+      ⚠ 这个文档跑在 `<iframe sandbox="allow-scripts">` 里（**不带** allow-same-origin），
+      它的源是不透明的 `null`，并且平台静态路由下发的 CSP 是：
+
+          default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline';
+          img-src 'self' data:; connect-src 'none'; frame-ancestors 'self'
+
+      由此推出本文件的三条写法约束：
+
+      ① **脚本必须是独立文件**（`<script src="app.js">`），不能内联。
+         `script-src 'self'` 不含 `unsafe-inline`，内联 `<script>` 会被浏览器直接拒绝执行，
+         而那种失败在控制台之外**毫无征兆** —— 界面看着正常，点了什么都不发生。
+      ② **不能写 ES module**（`type="module"`）。不透明源下模块脚本走 CORS，会被拦
+         （实测 `Access to script … from origin 'null' has been blocked by CORS policy`）。
+         经典脚本没有这条限制，且本页不需要 import 任何东西。
+      ③ **样式用独立文件**（`style.css`）。`style-src` 虽然允许内联，但独立文件更清晰，
+         且不受"平台哪天收紧成 'self'"的影响。
+
+      资源一律用**相对路径**：票据在 path 段（`…/ui-t/<ticket>/index.html`），
+      相对 URL 只继承 path ⇒ 子资源自动带同一枚票据。写成 `/ui/app.js` 会丢票据 → 401。
+
+      ④ 页面里**没有任何直接网络请求**。CSP 的 `connect-src 'none'` 会拒掉 fetch/XHR/WS，
+      而平台的鉴权令牌在宿主页面的 sessionStorage 里（本 iframe 读不到，这正是隔离的目的）。
+      所有数据都经 postMessage 请宿主代办，见 app.js 顶部的协议说明。
+    -->
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <div class="wrap">
+      <!-- ============================ 页头 ============================ -->
+      <header class="hd">
+        <span class="hd__icon" aria-hidden="true">🛍️</span>
+        <div class="hd__title">
+          <h1 id="plugin-title">HXCS 社区商店</h1>
+          <p>启用社区插件、配置注册表源</p>
+        </div>
+        <span class="chip" id="conn-chip" title="与平台的通信通道状态">
+          <i></i><span id="conn-text">正在连接平台…</span>
+        </span>
+        <!-- 保存：常显。禁用只表示"没有改动/正在保存"，不是隐藏。 -->
+        <button type="button" class="btn btn--primary" id="btn-save" disabled>保存配置</button>
+      </header>
+
+      <!-- 状态横幅（加载失败/无权限等）。没有内容时由 JS 保持空文本，不占高度。 -->
+      <div id="state-banner"></div>
+
+      <!-- ============================ ① 社区插件 ============================ -->
+      <section class="sec">
+        <h2>社区插件</h2>
+        <p>开启后市场页展示社区注册表中的第三方插件</p>
+        <div class="card">
+          <div class="row1">
+            <b>启用社区插件</b>
+            <span class="tag">第三方内容 · HOMEX 不作担保</span>
+          </div>
+          <div class="desc">
+            社区插件来自 GitHub 注册表，安装走平台完整验签/权限/schema 链路。
+            每个插件的来源仓库与许可证在市场卡片上明示。
+          </div>
+          <div class="line">
+            <span class="lineL">
+              <b id="community-state">已关闭</b>
+              <i>开启后市场页展示社区注册表中的第三方插件</i>
+            </span>
+            <button
+              type="button"
+              role="switch"
+              aria-checked="false"
+              aria-label="启用社区插件"
+              class="switch"
+              id="sw-community"
+            >
+              <i></i>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================ ② 兼容 HA 插件 ============================ -->
+      <section class="sec">
+        <h2>兼容 HA 插件</h2>
+        <p>开启后支持 HA 风格集成包的展示与导入</p>
+        <div class="card">
+          <div class="line">
+            <span class="lineL">
+              <b id="ha-state">已关闭</b>
+              <i>开启后社区注册表中的 HA 集成包会出现在市场页；关闭时仅显示普通插件</i>
+            </span>
+            <button
+              type="button"
+              role="switch"
+              aria-checked="false"
+              aria-label="兼容 HA 插件"
+              class="switch"
+              id="sw-ha"
+            >
+              <i></i>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================ ③ 注册表源 ============================ -->
+      <section class="sec">
+        <h2>注册表源</h2>
+        <p>社区插件索引的 base URL（index.json 所在目录）</p>
+        <div class="card">
+          <div class="row1">
+            <b>注册表地址</b>
+            <span class="tag">GitHub raw</span>
+          </div>
+          <div class="desc">
+            指向社区注册表仓库的 main 分支。更换注册表 = 换一个 GitHub 仓库地址，
+            插件清单随之更新。
+          </div>
+          <div class="row2">
+            <input
+              type="text"
+              class="input mono"
+              id="in-registry"
+              placeholder="https://raw.githubusercontent.com/..."
+              aria-label="注册表地址"
+            />
+            <!-- ★ 功能 3：测试连通。经宿主调 catalog_list，不直接 fetch（CSP 禁止）。 -->
+            <button type="button" class="btn" id="btn-probe">测试连通</button>
+          </div>
+          <div class="note" id="probe-result"></div>
+        </div>
+      </section>
+
+      <!-- ============================ ④ 下载代理 ============================ -->
+      <section class="sec">
+        <h2>下载代理</h2>
+        <p>浏览器下载 GitHub 插件包时使用的代理，解决直连下载慢或失败</p>
+        <div class="card">
+          <div class="row1">
+            <b>代理地址</b>
+            <span class="tag">留空 = 直连</span>
+          </div>
+          <div class="desc">
+            国内网络访问 raw.githubusercontent.com 可能超时或极慢。
+            配置本地代理后，社区插件的下载走代理加速。
+            支持 HTTP 代理（http://...）与 SOCKS5（socks5://...），任选。
+          </div>
+          <div class="row2">
+            <input
+              type="text"
+              class="input mono"
+              id="in-proxy"
+              placeholder="http://127.0.0.1:7890 或 socks5://127.0.0.1:10808（留空 = 直连）"
+              aria-label="下载代理地址"
+            />
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================ ⑤ 社区内容（只读） ============================ -->
+      <section class="sec">
+        <h2>社区内容</h2>
+        <p>当前注册表的实时状态（保存配置后刷新）</p>
+        <div class="card">
+          <div id="catalog-body">
+            <div class="desc">正在读取配置…</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 页脚：说明这个界面的数据是怎么来的（用户在隔离失败时能看懂"为什么不能直接连"）。 -->
+      <div class="note" style="margin-top: 22px">
+        这个界面由 HXCS 插件自带，运行在沙箱 iframe 里：它读不到平台的登录令牌，也发不出网络请求。
+        配置读写与注册表探测都经 postMessage 请求平台代办（每次调用都有白名单与超时）。
+      </div>
+    </div>
+
+    <!-- 经典脚本 + 相对路径（理由见文件头 ①②④）。 -->
+    <script src="./app.js"></script>
+  </body>
+</html>
