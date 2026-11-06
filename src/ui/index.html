@@ -40,11 +40,13 @@
           <h1 id="plugin-title">HXCS 社区商店</h1>
           <p>启用社区插件、配置注册表源</p>
         </div>
-        <span class="chip" id="conn-chip" title="与平台的通信通道状态">
-          <i></i><span id="conn-text">正在连接平台…</span>
-        </span>
-        <!-- 保存：常显。禁用只表示"没有改动/正在保存"，不是隐藏。 -->
-        <button type="button" class="btn btn--primary" id="btn-save" disabled>保存配置</button>
+        <div class="hd__actions">
+          <span class="chip" id="conn-chip" title="与平台的通信通道状态">
+            <i></i><span id="conn-text">正在连接平台…</span>
+          </span>
+          <!-- 保存：常显。禁用只表示"没有改动/正在保存"，不是隐藏。 -->
+          <button type="button" class="btn btn--primary" id="btn-save" disabled>保存配置</button>
+        </div>
       </header>
 
       <!-- 状态横幅（加载失败/无权限等）。没有内容时由 JS 保持空文本，不占高度。 -->
