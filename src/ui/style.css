@@ -61,7 +61,7 @@ body {
 
 /* 内容最大宽度：与平台的 .pcx（1080px 居中）同构。页面留白节奏用 --sp-6=32px。 */
 .page { padding: 0 var(--px, 20px); }
-.wrap { max-width: 1080px; margin: 0 auto; padding-bottom: 32px; }
+.wrap { max-width: 1080px; margin: 0 auto; padding-bottom: 12px; }
 
 /* ------------------------------------------------------------------ 页头 */
 
@@ -70,13 +70,13 @@ body {
   align-items: center;
   gap: 14px;
   flex-wrap: wrap;
-  padding: 24px 0 10px;
+  padding: 6px 0 4px;
 }
 
 .hd__icon {
-  width: 44px;
-  height: 44px;
-  flex: 0 0 44px;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
   display: grid;
   place-items: center;
   font-size: 20px;
@@ -121,7 +121,7 @@ body {
   border: 1px solid rgba(17, 24, 39, 0.18); /* --border-strong */
   background: #f0f2f5;                      /* --surface-2 */
   color: #17181c;
-  padding: 8px 14px;
+  padding: 6px 12px;
   cursor: pointer;
   /* 常显：不做任何 hover-only 显形。hover 只改观感，不改变"是否可见"。 */
   transition: background-color 0.12s ease, border-color 0.12s ease;
@@ -143,7 +143,7 @@ body {
 
 /* ------------------------------------------------------------------ 分段与卡片 */
 
-.sec { margin-top: 32px; }                  /* --sp-6 */
+.sec { margin-top: 14px; }                   /* 一屏放下（用户 2026-11-08：移除滚动条） */
 
 .sec h2 {
   margin: 0;
@@ -163,16 +163,16 @@ body {
   border-radius: 2px;
   background: #036bfd;                      /* --brand-accent */
 }
-.sec > p { margin: 5px 0 12px; font-size: 13px; color: #55657a; line-height: 1.6; }
+.sec > p { margin: 2px 0 6px; font-size: 12.5px; color: #55657a; line-height: 1.5; }
 
 .card {
   border-radius: 14px;                      /* --radius-lg */
   border: 1px solid rgba(17, 24, 39, 0.09); /* --border */
   background: #ffffff;                      /* --surface */
-  padding: 16px;
+  padding: 10px 14px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 7px;
 }
 
 .row1 { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; font-size: 14px; }
@@ -191,7 +191,7 @@ body {
 }
 .tag--accent { color: #1d4ed8; border-color: rgba(29, 78, 216, 0.35); background: #e8f0fe; }
 
-.desc { font-size: 13px; color: #55657a; line-height: 1.6; }
+.desc { font-size: 12.5px; color: #55657a; line-height: 1.45; }
 
 /* 一行「说明 + 控件」：说明占满剩余宽度，控件贴右。 */
 .line {
@@ -247,7 +247,7 @@ body {
   border: 1px solid rgba(17, 24, 39, 0.18);
   background: #ffffff;                      /* --surface */
   color: #17181c;
-  padding: 9px 12px;
+  padding: 7px 11px;
 }
 .input::placeholder { color: #9aa7b8; }
 .input:focus { outline: none; border-color: #036bfd; box-shadow: 0 0 0 2px rgba(3, 107, 253, 0.14); }
@@ -256,7 +256,7 @@ body {
 
 /* ------------------------------------------------------------------ 提示条 */
 
-.note { font-size: 12px; color: #55657a; line-height: 1.6; word-break: break-word; }
+.note { font-size: 12px; color: #55657a; line-height: 1.45; word-break: break-word; }
 .note--ok { color: #15803d; }
 .note--bad { color: #b91c1c; }
 

@@ -41,9 +41,10 @@
           <p>启用社区插件、配置注册表源</p>
         </div>
         <div class="hd__actions">
-          <span class="chip" id="conn-chip" title="与平台的通信通道状态">
-            <i></i><span id="conn-text">正在连接平台…</span>
-          </span>
+          <!-- 2026-11-08 用户裁定：「已连接平台」chip 删除 —— 插件随平台服务
+               自动加载，连接状态对用户没有信息量；通道真断了会有 banner 报错。
+               返回插件列表按钮常显（与语音页页头同款导航）。 -->
+          <button type="button" class="btn" id="btn-back" title="返回应用市场">← 返回插件列表</button>
           <!-- 保存：常显。禁用只表示"没有改动/正在保存"，不是隐藏。 -->
           <button type="button" class="btn btn--primary" id="btn-save" disabled>保存配置</button>
         </div>
@@ -61,14 +62,10 @@
             <b>启用社区插件</b>
             <span class="tag">第三方内容 · HOMEX 不作担保</span>
           </div>
-          <div class="desc">
-            社区插件来自 GitHub 注册表，安装走平台完整验签/权限/schema 链路。
-            每个插件的来源仓库与许可证在市场卡片上明示。
-          </div>
           <div class="line">
             <span class="lineL">
               <b id="community-state">已关闭</b>
-              <i>开启后市场页展示社区注册表中的第三方插件</i>
+              <i>社区插件来自 GitHub 注册表，安装走平台完整验签/权限/schema 链路；来源仓库与许可证在市场卡片明示</i>
             </span>
             <button
               type="button"
@@ -117,10 +114,6 @@
             <b>注册表地址</b>
             <span class="tag">GitHub raw</span>
           </div>
-          <div class="desc">
-            指向社区注册表仓库的 main 分支。更换注册表 = 换一个 GitHub 仓库地址，
-            插件清单随之更新。
-          </div>
           <div class="row2">
             <input
               type="text"
@@ -139,17 +132,8 @@
       <!-- ============================ ④ 下载代理 ============================ -->
       <section class="sec">
         <h2>下载代理</h2>
-        <p>浏览器下载 GitHub 插件包时使用的代理，解决直连下载慢或失败</p>
+        <p>浏览器下载 GitHub 插件包时使用的代理（HTTP / SOCKS5 任选），解决直连慢或失败</p>
         <div class="card">
-          <div class="row1">
-            <b>代理地址</b>
-            <span class="tag">留空 = 直连</span>
-          </div>
-          <div class="desc">
-            国内网络访问 raw.githubusercontent.com 可能超时或极慢。
-            配置本地代理后，社区插件的下载走代理加速。
-            支持 HTTP 代理（http://...）与 SOCKS5（socks5://...），任选。
-          </div>
           <div class="row2">
             <input
               type="text"

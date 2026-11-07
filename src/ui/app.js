@@ -243,23 +243,9 @@
     return document.getElementById(id);
   }
 
-  function renderConn() {
-    var chip = $('conn-chip');
-    var text = $('conn-text');
-    if (!chip || !text) return;
-    if (channelDead) {
-      chip.className = 'chip chip--bad';
-      text.textContent = '通道已切断';
-      return;
-    }
-    if (!connected || !port) {
-      chip.className = 'chip';
-      text.textContent = '正在连接平台…';
-      return;
-    }
-    chip.className = 'chip chip--ok';
-    text.textContent = '已连接平台';
-  }
+  /* 2026-11-08 用户裁定：「已连接平台」chip 删除 —— 插件随平台服务自动加载，
+     连接状态没有信息量。通道死亡（channelDead）时由 banner 报错，不靠常驻 chip。 */
+  function renderConn() {}
 
   /** 开关的状态文字（纯展示，与控件 aria-checked 同源）。 */
   function renderToggles() {
@@ -644,6 +630,14 @@
     if (save) save.addEventListener('click', doSave);
     var probe = $('btn-probe');
     if (probe) probe.addEventListener('click', doProbe);
+
+  // 返回插件列表：iframe（opaque origin）不能操作顶层导航 —— 走协议 op
+  // plugin.ui.close（容器执行 onClose；去哪由宿主决定，插件不指定地址）。
+  var back = $('btn-back');
+  if (back) back.addEventListener('click', function () {
+    rpc('plugin.ui.close')
+      .catch(function () { /* 容器不支持该 op 时静默：按钮仍在，不藏功能 */ });
+  });
 
     renderConn();
     renderToggles();

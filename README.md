@@ -1,6 +1,6 @@
 # HXCS — HOMEX 社区商店
 
-> **HOMEX Community Store**　·　插件 ID `homex.hxcs`　·　当前版本 **1.0.6**　·　运行时 Python
+> **HOMEX Community Store**　·　插件 ID `homex.hxcs`　·　当前版本 **1.0.7**　·　运行时 Python
 
 HXCS 让 HOMEX 平台具备**社区生态**：它既是第三方插件的分发注册表客户端，也是
 一个 **Home Assistant 集成兼容运行时**。安装并启用后，市场页会展示本仓库索引
@@ -158,7 +158,7 @@ HXCS 在宿主平台的沙箱之上又加了三层：
 
 ### 4.1 自带配置界面（entry.ui）
 
-HXCS 从 1.0.6 起**自带独立配置界面**（`entry.ui: "ui/index.html"`），不再依赖平台的
+HXCS 从 1.0.7 起**自带独立配置界面**（`entry.ui: "ui/index.html"`），不再依赖平台的
 通用表单。这意味着：
 
 - 配置页有完整的页头、分段卡片与交互（与语音识别配置页同构）
@@ -215,7 +215,7 @@ plugin:
 
 **方式 A — 市场页上传**
 
-市场页 → 上传 `.hpkg` → 选择 `homex.hxcs-1.0.6.hpkg`
+市场页 → 上传 `.hpkg` → 选择 `homex.hxcs-1.0.7.hpkg`
 
 **方式 B — 直接安装**
 
@@ -225,7 +225,7 @@ curl -X POST http://<host>:8080/api/v1/plugins/install \
   -H "X-Household-Id: $HH" \
   -H "Content-Type: application/json" \
   -d @- <<EOF
-{"package_b64": "$(base64 -w0 homex.hxcs-1.0.6.hpkg)"}
+{"package_b64": "$(base64 -w0 homex.hxcs-1.0.7.hpkg)"}
 EOF
 ```
 
@@ -277,16 +277,16 @@ plugins/<plugin-id>/releases/<ver>.hpkg      预打包制品
 
 ```bash
 # 1. 打包（在 homex 仓库里）
-go run ./cmd/cli plugin package --dir <HXCS>/src --out build/homex.hxcs-1.0.6.hpkg
+go run ./cmd/cli plugin package --dir <HXCS>/src --out build/homex.hxcs-1.0.7.hpkg
 
 # 2. 去签名（本插件走免签名通道，不需要密钥）
-go run ./cmd/cli plugin unsign build/homex.hxcs-1.0.6.hpkg
+go run ./cmd/cli plugin unsign build/homex.hxcs-1.0.7.hpkg
 
 # 3. 验证结构（应当提示「未签名：平台会拒绝安装」，这是预期结果）
-go run ./cmd/cli plugin verify build/homex.hxcs-1.0.6.hpkg
+go run ./cmd/cli plugin verify build/homex.hxcs-1.0.7.hpkg
 
 # 4. 更新 index.json 里的 version / package_url / package_sha256
-sha256sum build/homex.hxcs-1.0.6.hpkg
+sha256sum build/homex.hxcs-1.0.7.hpkg
 ```
 
 > `plugin unsign` 会**清空 `signature.value` 但保留 `algorithm` / `key_id` 骨架**，
