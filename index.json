@@ -83,10 +83,10 @@
     {
       "plugin_id": "homex.hxcs",
       "name": "HXCS 社区商店",
-      "version": "1.0.7",
+      "version": "1.0.8",
       "type": "prebuilt",
       "description": "HOMEX Community Store：社区插件商店 + HA 兼容运行时。安装后在配置页开启「社区插件」显示社区注册表中的第三方插件；开启「兼容 HA 插件」后支持加载社区注册表中的 HA 集成。",
-      "package_url": "plugins/hxcs/releases/homex.hxcs-1.0.7.hpkg",
+      "package_url": "plugins/hxcs/releases/homex.hxcs-1.0.8.hpkg",
       "source_repo": "https://github.com/1169892406/HXCS",
       "license": "MIT",
       "github_stars": 1,
@@ -98,7 +98,7 @@
         "network.outbound",
         "config.read"
       ],
-      "package_sha256": "99b082bbae7817232adbaba97ca8533e5defcce5b675883d5cbe51109fe7ae18"
+      "package_sha256": "5f4374f2eb0c4dcb5e573270dd5d8288fac277cd1e2b4c1d94ccf69687c400f2"
     }
   ]
 }
