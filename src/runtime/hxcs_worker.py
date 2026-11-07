@@ -28,6 +28,17 @@ from __future__ import annotations
 import os, sys
 
 
+# ## 解压失败不得致命（2026-11-07 1.68 实测 PLUGIN_HEALTH_CHECK_FAILED 根因）
+#
+# 本函数在**模块导入期**执行 —— worker 进程的第一步。原实现在解压失败时直接
+# 抛 OSError（只读盘 / 权限 / hxcs-vendor 残留），后果是：
+#   · worker 进程启动即死，平台只看到 stdout EOF，健康检查零原因失败；
+#   · 而商店核心功能（catalog_list / catalog_fetch / community_status / RPC
+#     读写配置）**全部是标准库**，根本不依赖 vendor —— vendor 只服务 HA 集成
+#     的第三方依赖（aiohttp/pycryptodome/midealan）。
+# 所以正确语义是**尽力而为**：解压成功 → sys.path 加上（HA 集成可用）；
+# 失败 → 打一条 stderr 警告，integration_load 时再因 ImportError 给出明确
+# 报错，而不是把整个商店打死在启动第一步。
 def _bootstrap_vendor() -> None:
     """把 vendored 依赖解压到持久化目录并加进 sys.path。
 
@@ -85,7 +96,14 @@ def _bootstrap_vendor() -> None:
         sys.path.insert(0, target)
 
 
-_bootstrap_vendor()
+try:
+    _bootstrap_vendor()
+except Exception as _vendor_err:  # noqa: BLE001 —— 任何解压失败都不许打死进程
+    # 商店核心全标准库；vendor 只服务 HA 集成。失败要可见（stderr，平台
+    # 2026-11-07 起会把 worker stderr 末尾附进健康检查错误），但绝不能让
+    # prepare/health 因为它挂掉 —— 否则整个插件"无法开启"，零原因。
+    print(f"[hxcs] vendor 解压失败（HA 集成暂不可用，商店功能不受影响）: {_vendor_err}",
+          file=sys.stderr, flush=True)
 
 import asyncio
 import time
