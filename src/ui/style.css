@@ -293,3 +293,36 @@ code {
 
 .muted { color: #55657a; }
 .small { font-size: 12.5px; }
+
+/* ---------------------------------------------------------------- 「注册插件」表格
+   用户 2026-11-08 确认的效果稿：左右两列（HACS / HXCS），浅灰表头、细分割线、
+   短列补位 —、表尾汇总行。 */
+
+.reg-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.reg-table th {
+  text-align: left;
+  padding: 8px 14px;
+  font-weight: 600;
+  color: #55657a;
+  background: rgba(17, 24, 39, 0.035);
+  border-bottom: 1px solid rgba(17, 24, 39, 0.09);
+}
+.reg-table td {
+  padding: 7px 14px;
+  border-bottom: 1px solid rgba(17, 24, 39, 0.06);
+}
+.reg-table tr:last-child td { border-bottom: none; }
+.reg-table td b { font-weight: 600; }
+.reg-table .mono { color: #55657a; }
+.reg-table__lic { color: #9aa7b8; font-size: 12px; }
+.reg-table__empty { color: #9aa7b8; }
+.reg-table__foot {
+  font-size: 12px;
+  color: #55657a;
+  padding: 8px 14px;
+  border-top: 1px solid rgba(17, 24, 39, 0.06);
+}

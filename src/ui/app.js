@@ -539,53 +539,67 @@
 
     var plugins = res.plugins || [];
     var root = res.trust_root || {};
-    // ha_integration 不在这里显示：它们属于「HA 集成」，社区内容只列普通插件
-    // （与平台页面同一口径 —— 否则同一批集成会在两处各列一遍）。
-    var prebuilt = plugins.filter(function (p) {
-      return p && p.type !== 'ha_integration';
+    // ## 「注册插件」左右两列表格（用户 2026-11-08 确认的效果稿）
+    //
+    // · 左列「HACS 插件」= type:ha_integration（HA 集成包，经 worker 的
+    //   integration_install 通道安装进 HA 兼容运行时）
+    // · 右列「HXCS 插件」= 其余（平台 .hpkg 包，经平台 installFromPackage 安装）
+    // 两组都展示 —— 之前把 ha_integration 过滤掉不显示，用户看不到注册表里的
+    // HA 集成有哪些。短列用 — 补位；表尾一行汇总数量与信任根。
+    var hacs = plugins.filter(function (p) { return p && p.type === 'ha_integration'; });
+    var hxcs = plugins.filter(function (p) { return p && p.type !== 'ha_integration'; });
+    var rows = Math.max(hacs.length, hxcs.length, 1);
+
+    var tbl = document.createElement('table');
+    tbl.className = 'reg-table';
+    tbl.setAttribute('data-testid', 'hxcs-ui-catalog-table');
+
+    var thead = document.createElement('thead');
+    var htr = document.createElement('tr');
+    ['HACS 插件', 'HXCS 插件'].forEach(function (t) {
+      var th = document.createElement('th');
+      th.textContent = t;
+      htr.appendChild(th);
     });
+    thead.appendChild(htr);
+    tbl.appendChild(thead);
 
-    var head = document.createElement('div');
-    head.className = 'row1';
-    var b = document.createElement('b');
-    b.textContent = '注册表在线';
-    var tag = document.createElement('span');
-    tag.className = 'tag';
-    tag.textContent = prebuilt.length + ' 个插件';
-    head.appendChild(b);
-    head.appendChild(tag);
-    body.appendChild(head);
-
-    var trust = document.createElement('div');
-    trust.className = 'desc';
-    var fp = String(root.fingerprint || '').slice(0, 16);
-    trust.textContent = '信任根：' + (root.key_id || '—') + '（指纹 ' + (fp || '—') + '）';
-    body.appendChild(trust);
-
-    if (!prebuilt.length) {
-      var empty = document.createElement('div');
-      empty.className = 'desc';
-      empty.textContent = '注册表里当前没有可安装的插件。';
-      body.appendChild(empty);
-      return;
+    var tbody = document.createElement('tbody');
+    for (var i = 0; i < rows; i++) {
+      var tr = document.createElement('tr');
+      [hacs[i], hxcs[i]].forEach(function (p) {
+        var td = document.createElement('td');
+        if (!p) {
+          td.textContent = '—';
+          td.className = 'reg-table__empty';
+        } else {
+          td.setAttribute('data-testid', 'hxcs-ui-catalog-item-' + (p.plugin_id || ''));
+          var b = document.createElement('b');
+          b.textContent = p.name || p.plugin_id || '未命名';
+          var v = document.createElement('span');
+          v.className = 'mono';
+          v.textContent = ' v' + (p.version || '—');
+          var lic = document.createElement('span');
+          lic.className = 'reg-table__lic';
+          lic.textContent = (p.license ? ' ' + p.license : '');
+          td.appendChild(b);
+          td.appendChild(v);
+          td.appendChild(lic);
+        }
+        tr.appendChild(td);
+      });
+      tbody.appendChild(tr);
     }
+    tbl.appendChild(tbody);
+    body.appendChild(tbl);
 
-    prebuilt.forEach(function (p) {
-      var item = document.createElement('div');
-      item.className = 'item';
-      item.setAttribute('data-testid', 'hxcs-ui-catalog-item');
-      var n = document.createElement('span');
-      n.textContent = '· ' + (p.name || p.plugin_id || '未命名');
-      var v = document.createElement('span');
-      v.textContent = 'v' + (p.version || '—');
-      var lic = document.createElement('span');
-      lic.className = 'muted';
-      lic.textContent = p.license || '';
-      item.appendChild(n);
-      item.appendChild(v);
-      item.appendChild(lic);
-      body.appendChild(item);
-    });
+    var foot = document.createElement('div');
+    foot.className = 'reg-table__foot';
+    var fp = String(root.fingerprint || '').slice(0, 16);
+    foot.textContent =
+      'HACS ' + hacs.length + ' 个 · HXCS ' + hxcs.length + ' 个 · 信任根：' +
+      (root.key_id || '—') + '（指纹 ' + (fp || '—') + '）';
+    body.appendChild(foot);
   }
 
   // ---------------------------------------------------------------- 事件接线
