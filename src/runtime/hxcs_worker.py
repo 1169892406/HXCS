@@ -120,6 +120,37 @@ from typing import Any
 from hx_ha_runtime.runtime import IntegrationRuntime
 
 
+# ## 强制 IPv4 解析（2026-11-01 踩坑，2026-11-08 改为模块级一次安装）
+#
+# raw.githubusercontent.com 的 DNS 返回 IPv6 优先，而本机 IPv6 出网不通：
+# python 默认走 IPv6 → TLS 握手超时（实测 25.6s），强制 IPv4 后 0.2s。
+# curl 能通是因为它 Happy Eyeballs 自动回落 IPv4。
+#
+# **为什么放在模块级而不是每次请求 patch**：2026-11-08 实测发现，
+# "代理失败→回退直连"路径上反复替换 socket.getaddrinfo 会留下状态，
+# 导致回退后的直连反而 read timeout（12s）——那比不修还慢。
+# 改为导入时安装一次，全程稳定生效。
+#
+# 边界：走 HTTP 代理时，getaddrinfo 解析的是**代理主机**（通常是 IP，不受影响）；
+# 目标域名由代理自己解析，这部分无法在本进程控制——这正是"代理坏掉就该回退
+# 直连"的意义所在（见 _http_get 的降级逻辑）。
+def _install_ipv4_only() -> None:
+    import socket as _socket
+    if getattr(_socket.getaddrinfo, "_homex_v4_only", False):
+        return
+    _orig = _socket.getaddrinfo
+
+    def v4_only(host, port, family=0, *a, **kw):
+        return [x for x in _orig(host, port, family, *a, **kw)
+                if x[0] == _socket.AF_INET]
+
+    v4_only._homex_v4_only = True  # type: ignore[attr-defined]
+    _socket.getaddrinfo = v4_only
+
+
+_install_ipv4_only()
+
+
 # —— config_flow 结果序列化 ——————————————————————————————————————
 
 def _selector_of(marker) -> dict[str, Any]:
@@ -259,45 +290,94 @@ class HxcsWorker:
 
     # —— HTTP 工具（Python 直连，不走宿主 session）—————————————————
 
+    # ## 单次 HTTP 超时必须短于平台 RPC 超时（2026-11-08 1.68 实测根因）
+    #
+    # 平台 runtime_backend_python 的 rpcLocked 超时 = 30s，超时即
+    # `p.cmd.Process.Kill()` —— **整个 worker 被杀**，随后所有工具（含
+    # integrations_list ⇒ HA 集成卡、midea）全部不可用，用户看到"插件时好时坏"。
+    #
+    # 旧实现单次请求 45s > 30s ⇒ 代理不通时 worker 必然死在平台手里。
+    # 现在单次 12s：worker 自己先超时、把错误作为**业务失败**返回，
+    # 平台不杀进程，下一次调用照常可用。
+    HTTP_TIMEOUT = 12.0
+    # 星数刷新是**装饰性**数据，给更短的预算，绝不拖累主路径。
+    STARS_TIMEOUT = 3.0
+
     def _http_get(self, url: str, max_bytes: int = 32 * 1024 * 1024,
-                  extra_headers: dict[str, str] | None = None) -> bytes:
+                  extra_headers: dict[str, str] | None = None,
+                  timeout: float | None = None) -> bytes:
+        """GET 一个 URL；**代理失败自动回退直连**。
+
+        ## 为什么必须回退（2026-11-08 1.68 实测）
+        用户配置的代理（http://192.168.1.52:10808）失效时，旧实现仍只用代理
+        ⇒ 全部请求超时 ⇒ 平台判 worker 卡死并杀掉。而同一台机器**直连 IPv4
+        是通的**（curl -4 实测 2.9s，代理 50s 无响应）。
+        代理的语义是"加速器"：它坏了应该降级到直连，而不是让功能整体不可用。
+        因此：配了代理就先用代理，失败后自动用直连再试一次；两者都失败才报错，
+        且错误信息里说明两次都失败（便于用户判断是网络还是代理）。
+
+        返回值与旧实现一致（bytes）；失败抛异常。
+        """
+        to = timeout if timeout is not None else self.HTTP_TIMEOUT
         headers = {"Accept": "application/json"}
         if extra_headers:
             headers.update(extra_headers)
+
+        proxy = str(self._cfg("proxy_url", "")).strip()
+        # ## 代理失效短期记忆（2026-11-08）
+        #
+        # 代理坏掉时每次请求都要白等 5s 再回退。记住"这个代理在 X 秒内不可用"，
+        # 期间直接用直连；用户修好代理后最多等一个记忆窗口（5 分钟）自动恢复。
+        # 只对**连接层失败**（超时/拒绝）记忆；HTTP 4xx/5xx 不记忆（那是目标侧问题）。
+        now_ts = time.time()
+        if proxy and now_ts < getattr(self, "_proxy_dead_until", 0.0) and \
+                getattr(self, "_proxy_dead_addr", "") == proxy:
+            proxy = ""
+        attempts: list[tuple[str, str]] = []
+        if proxy:
+            attempts.append(("proxy", proxy))
+        attempts.append(("direct", ""))
+
+        last_err: Exception | None = None
+        # 代理尝试用**更短**的超时（5s）：代理坏掉时不该让用户等满 12s 才降级。
+        # 代理正常时 TLS 隧道建立通常 1~2s，5s 余量充足。
+        PROXY_TRY_TIMEOUT = 5.0
+        for kind, px in attempts:
+            try:
+                attempt_timeout = min(to, PROXY_TRY_TIMEOUT) if kind == "proxy" else to
+                return self._http_get_once(url, max_bytes, headers, px, attempt_timeout)
+            except Exception as exc:  # noqa: BLE001 —— 网络层什么都可能抛
+                last_err = exc
+                if kind == "proxy":
+                    # 代理失败 → 记下 5 分钟不可用（下次直接走直连，不再白等）
+                    self._proxy_dead_until = time.time() + 300.0
+                    self._proxy_dead_addr = px
+                    # 静默降级：预期内的降级不写 stderr，否则真问题会被刷没
+                    continue
+                raise
+        if last_err is not None:
+            raise last_err
+        raise RuntimeError(f"请求失败：{url}")
+
+    def _http_get_once(self, url: str, max_bytes: int, headers: dict[str, str],
+                       proxy: str, timeout: float) -> bytes:
+        """单次尝试（指定代理或直连）。
+
+        IPv4 强制在**模块级**安装一次（见文件顶部 _install_ipv4_only），
+        这里不再每次 patch/restore getaddrinfo —— 反复替换全局解析器会在
+        "代理失败→回退直连"这条路径上留下半开 socket 与解析器状态，
+        实测导致回退后的直连反而 read timeout（2026-11-08 1.68 实测）。
+        """
         req = urllib.request.Request(url, headers=headers)
-        # 代理支持
-        proxy = str(self._cfg("proxy_url", ""))
         handlers = []
         if proxy:
-            handlers.append(urllib.request.ProxyHandler({
-                "http": proxy, "https": proxy,
-            }))
-        opener = urllib.request.build_opener(*handlers)  # 空 handlers = 默认直连
-        # ## 强制 IPv4（2026-11-01 新机器迁移实测踩坑）
-        #
-        # raw.githubusercontent.com DNS 返回 IPv6 优先；新机器 IPv6 不通，
-        # python 走 IPv6 → TLS 握手超时 40s → 平台判定 worker 卡死 → broken pipe。
-        # curl 能通是因为它 Happy Eyeballs 回落 IPv4。这里显式过滤掉 IPv6，
-        # 让 urllib 只连 IPv4（185.199.108.x），根治握手超时。
-        parsed = urllib.parse.urlparse(url)
-        if parsed.scheme == "https" and parsed.hostname:
-            import socket as _socket
-            orig = _socket.getaddrinfo
-            def v4_only(host, port, family=0, *a, **kw):
-                return [x for x in orig(host, port, family, *a, **kw)
-                        if x[0] == _socket.AF_INET]
-            _socket.getaddrinfo = v4_only
-            try:
-                with opener.open(req, timeout=45) as resp:
-                    if resp.status != 200:
-                        raise RuntimeError(f"HTTP {resp.status}: {url}")
-                    data = resp.read(max_bytes + 1)
-                    if len(data) > max_bytes:
-                        raise RuntimeError(f"响应超过 {max_bytes} 字节")
-                    return data
-            finally:
-                _socket.getaddrinfo = orig
-        with opener.open(req, timeout=45) as resp:
+            handlers.append(urllib.request.ProxyHandler({"http": proxy, "https": proxy}))
+        opener = urllib.request.build_opener(*handlers)  # 空 handlers = 直连
+        return self._read_resp(opener, req, timeout, max_bytes, url)
+
+    @staticmethod
+    def _read_resp(opener, req, timeout: float, max_bytes: int, url: str) -> bytes:
+        with opener.open(req, timeout=timeout) as resp:
             if resp.status != 200:
                 raise RuntimeError(f"HTTP {resp.status}: {url}")
             data = resp.read(max_bytes + 1)
@@ -419,35 +499,19 @@ class HxcsWorker:
                     "config_flow": mf.get("config_flow", False),
                     "path": str(d),
                 })
-        # ## GitHub 星数自动刷新（用户 2026-11-02）
+        # ## 星数与注册表请求都不在这里做（2026-11-08 1.68 实测：29.6s → 贴死 30s 超时）
         #
-        # 注册表里的 github_stars 是**维护者填的静态值**，不会自己变。
-        # 但仓库涨星是持续发生的，用户希望"看到的星数和 GitHub 一致"。
-        # 所以这里直连 GitHub API 查一次真值，缓存 30 分钟（避免打爆
-        # 未认证的 60 次/小时限流），失败就回落到注册表里的静态值。
-        #   · 缓存文件：<持久化>/github-stars.json
-        #   · TTL：30 分钟
-        #   · 无 token 时 60 次/小时限流 → 30 分钟一次是安全的
-        # ## 补 GitHub 星数（用户 2026-11-02：60 分钟刷新一次，不用 token）
-        try:
-            self._refresh_github_stars()
-            live = getattr(self, "_gh_stars", {}) or {}
-        except Exception:
-            live = {}
-        try:
-            reg_url = self.registry_url.rstrip("/") + "/index.json"
-            raw = self._http_get(reg_url, max_bytes=1 << 20)
-            reg = json.loads(raw)
-            stars = {
-                p.get("plugin_id"): live.get(p.get("plugin_id"), p.get("github_stars", 0))
-                for p in reg.get("plugins", [])
-            }
-            for item in result["available"]:
-                if item["domain"] in stars:
-                    item["github_stars"] = stars[item["domain"]]
-        except Exception:
-            for item in result["available"]:
-                item.setdefault("github_stars", 0)
+        # 旧实现在这里做了两件**非必要**的重活：
+        #   ① _refresh_github_stars()：最多 6s 预算，串行打 GitHub API
+        #   ② 再拉一次 index.json：坏代理时 6s+
+        # 两者叠加让 integrations_list 达到 29.6s，而平台 RPC 超时是 30s ——
+        # 一旦超时 worker 被杀，用户看到的是"HA 集成/midea 时有时无"。
+        #
+        # HA 集成卡片的星数本来就没有展示价值（它们不是本仓库的插件），
+        # 注册表里也没有它们的 github_stars。所以这里直接给 0，把这条
+        # 路径做成纯本地扫描（毫秒级）。
+        for item in result["available"]:
+            item["github_stars"] = 0
 
         # 已加载的：优先看 entries（已 setup 的 config entry）；
         # 没有 entry 的看 runtime.installed（install 后已注册但还没配设备的）
@@ -617,6 +681,8 @@ class HxcsWorker:
     #   · 失败静默回落注册表静态值（不影响任何业务）
     GITHUB_STARS_TTL = 60 * 60  # 60 分钟
 
+    STARS_TOTAL_BUDGET = 6.0
+
     def _refresh_github_stars(self) -> None:
         """从 GitHub API 拉星数（无 token，60 分钟缓存）。
 
@@ -647,7 +713,15 @@ class HxcsWorker:
         except Exception:
             return
         fresh: dict[str, int] = {}
+        # ## 总预算（2026-11-08）：星数是装饰性数据，绝不能拖累 catalog_list
+        #
+        # 旧实现 4~5 个仓库串行、每个可用 45s ⇒ 最坏 180s，而平台 RPC 超时
+        # 30s 会把 worker 杀掉。现在每个 3s 超时 + 总预算 6s：预算耗尽就
+        # 带着已拿到的部分返回，剩下的等下一轮（星数短暂不一致无害）。
+        deadline = time.time() + self.STARS_TOTAL_BUDGET
         for plugin_id, repo in repos.items():
+            if time.time() >= deadline:
+                break
             owner_repo = repo.replace("https://github.com/", "").rstrip("/")
             if "/" not in owner_repo:
                 continue
@@ -655,6 +729,7 @@ class HxcsWorker:
                 body = self._http_get(
                     f"https://api.github.com/repos/{owner_repo}",
                     max_bytes=1 << 20,
+                    timeout=self.STARS_TIMEOUT,
                 )
                 meta = json.loads(body)
                 fresh[plugin_id] = int(meta.get("stargazers_count", 0))

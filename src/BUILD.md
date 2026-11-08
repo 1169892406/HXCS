@@ -34,16 +34,16 @@ HXCS 走平台**免签名通道**，不需要签名密钥：
 cd homex
 
 # 1. 打包
-go run ./cmd/cli plugin package --dir <HXCS>/src --out build/homex.hxcs-1.0.9.hpkg
+go run ./cmd/cli plugin package --dir <HXCS>/src --out build/homex.hxcs-1.0.10.hpkg
 
 # 2. 去签名（若产物已带签名段）
-go run ./cmd/cli plugin unsign build/homex.hxcs-1.0.9.hpkg
+go run ./cmd/cli plugin unsign build/homex.hxcs-1.0.10.hpkg
 
 # 3. 验证（提示「未签名」是预期结果）
-go run ./cmd/cli plugin verify build/homex.hxcs-1.0.9.hpkg
+go run ./cmd/cli plugin verify build/homex.hxcs-1.0.10.hpkg
 
 # 4. 取摘要，更新 index.json 的 package_sha256
-sha256sum build/homex.hxcs-1.0.9.hpkg
+sha256sum build/homex.hxcs-1.0.10.hpkg
 ```
 
 **关键提醒**：`plugin unsign` 只清空 `signature.value`，**保留** `algorithm` /
