@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "plugin_id": "hx.mqtt_broker",
+  "name": "HX-Mqtt Broker",
+  "version": "1.1.1",
+  "publisher": {
+    "id": "hx-community",
+    "display_name": "HX Community"
+  },
+  "type": "service_integration",
+  "runtime": "wasm",
+  "api_version": "1",
+  "description": "平台内置 MQTT 消息总线：编译在 HOMEX 主服务内，随主服务启动加载，无独立进程、无独立监听端口。设备状态、事件与命令经它统一分发；插件开发者用 SDK 高层接口接入，无需对接 MQTT 协议，也无需配置地址与凭据。支持随包热加载，升级不需要重启主服务。",
+  "permissions": [
+    "config.read"
+  ],
+  "entry": {
+    "wasm": "plugin.wasm"
+  },
+  "tools": [
+    "requirements",
+    "status"
+  ],
+  "limits": {
+    "max_memory_mb": 8,
+    "execution_timeout_ms": 1000,
+    "max_storage_kb": 1
+  },
+  "config_schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  },
+  "changelog": "1.1.1：改为第三方插件形态（社区注册表 + 免签名通道），发布者为 HX Community；形态不变——内置消息总线登记条目，无独立进程/端口，随主服务加载，支持热加载。",
+  "signature": {
+    "algorithm": "ed25519",
+    "key_id": "hx-mqtt-community",
+    "value": ""
+  }
+}

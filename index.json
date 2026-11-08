@@ -103,11 +103,11 @@
     {
       "plugin_id": "hx.mqtt_broker",
       "name": "HX-Mqtt Broker",
-      "version": "1.1.0",
+      "version": "1.1.1",
       "type": "prebuilt",
       "description": "平台内置 MQTT 消息总线：随主服务加载，无独立进程、无独立监听端口，支持热加载。设备状态/事件/命令经它统一分发，插件侧用 SDK 高层接口接入，无需配置地址与凭据。",
-      "package_url": "plugins/mqtt-broker/releases/hx.mqtt_broker-1.1.0.hpkg",
-      "source_repo": "https://github.com/1169892406/HX-MQTT-BROKER",
+      "package_url": "plugins/mqtt-broker/releases/hx.mqtt_broker-1.1.1.hpkg",
+      "source_repo": "https://github.com/1169892406/HXCS",
       "license": "MIT",
       "publisher": {
         "id": "homex",
@@ -116,7 +116,7 @@
       "permissions": [
         "config.read"
       ],
-      "package_sha256": "aa7102676335db69e9ef20a7b55be78838d04829f6ae78ad522c0558d246a7ab",
+      "package_sha256": "ee006080848583853fb54ae3be17fa052b09fe86a960da9479827362e5a00c9f",
       "github_stars": 0
     }
   ]
