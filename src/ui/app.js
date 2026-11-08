@@ -170,6 +170,9 @@
     if (m.type === 'host-ready') {
       connected = true;
       renderConn();
+      // 内容高度上报（2026-11-08）：通道已就绪，把"本页需要多高"交给宿主，
+      // 之后滚动由平台页接管（插件页不该有自己的滚动条）。
+      startHeightReporting();
       if (firstLoadPending) {
         firstLoadPending = false;
         doLoadConfig();
@@ -211,6 +214,9 @@
       try { port.start(); } catch (e) { /* 已启动 */ }
     }
     renderConn();
+    // 端口就绪同样上报（与 host-ready 是两条独立路径，缺哪条都会表现为
+    // "有时候滚动条正常、有时候还是双层"）。
+    startHeightReporting();
     if (firstLoadPending) {
       firstLoadPending = false;
       doLoadConfig();
@@ -246,6 +252,57 @@
   /* 2026-11-08 用户裁定：「已连接平台」chip 删除 —— 插件随平台服务自动加载，
      连接状态没有信息量。通道死亡（channelDead）时由 banner 报错，不靠常驻 chip。 */
   function renderConn() {}
+
+  /*
+   * ── 内容高度上报（2026-11-08）────────────────────────────────────────
+   *
+   * # 为什么要插件自己上报
+   *
+   * 本页面跑在 sandbox iframe 里（opaque origin）。平台**读不到**它的
+   * scrollHeight —— 这是跨源隔离的必然结果，不是平台偷懒。所以"内容有多高"
+   * 只有本页自己知道，只能由本页通过协议 op `plugin.ui.resize` 上报。
+   *
+   * # 上报之后发生什么
+   *
+   * 宿主把 iframe 高度设成上报值 ⇒ 内容不再在 iframe 内部滚，改用**平台页**
+   * 那条滚动条 —— 用户口径：插件配置页要与语音识别页一致（只有一条滚动条）。
+   *
+   * # 去抖与幂等
+   *
+   * 用 ResizeObserver 观察 body，变化后 150ms 去抖再报；只在高度**整数像素**
+   * 变化时才发（子像素抖动会让宿主每帧 setState）。重复上报同值是幂等的。
+   */
+  var lastReportedHeight = 0;
+  var resizeTimer = null;
+
+  function reportContentHeight() {
+    var h = Math.ceil(document.body.getBoundingClientRect().height);
+    if (h <= 0) return;
+    if (Math.abs(h - lastReportedHeight) < 1) return;
+    lastReportedHeight = h;
+    // 失败静默：上报高度是**体验优化**，不该在通道未就绪时刷错误提示。
+    rpc('plugin.ui.resize', { height: h }).catch(function () {});
+  }
+
+  function scheduleHeightReport() {
+    if (resizeTimer) clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(reportContentHeight, 150);
+  }
+
+  /** 起一个观察器 + 首次上报。通道就绪后才能报（见调用点）。 */
+  function startHeightReporting() {
+    reportContentHeight();
+    if (typeof ResizeObserver !== 'function') {
+      // 老浏览器：只在 load 与窗口尺寸变化时上报，够用（内容本身由配置决定）。
+      window.addEventListener('resize', scheduleHeightReport);
+      return;
+    }
+    var ro = new ResizeObserver(scheduleHeightReport);
+    ro.observe(document.body);
+    // 内容异步变化（注册表表格填数据、展开描述）也要报 —— 那些不改窗口尺寸。
+    var wrap = document.querySelector('.wrap');
+    if (wrap) ro.observe(wrap);
+  }
 
   /** 开关的状态文字（纯展示，与控件 aria-checked 同源）。 */
   function renderToggles() {
