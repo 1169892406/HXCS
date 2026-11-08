@@ -11,10 +11,10 @@
     {
       "plugin_id": "homex.weather_msn",
       "name": "MSN 天气",
-      "version": "1.2.4",
+      "version": "1.2.5",
       "type": "prebuilt",
       "description": "MSN 天气数据源：实时天气 + 逐小时 + 每日预报，自动定位或手动选城市。",
-      "package_url": "plugins/msn-weather/releases/homex.weather_msn-1.2.4.hpkg",
+      "package_url": "plugins/msn-weather/releases/homex.weather_msn-1.2.5.hpkg",
       "source_repo": "https://github.com/1169892406/hx_msn_weather",
       "license": "MIT",
       "publisher": {
@@ -25,16 +25,16 @@
         "network.outbound",
         "config.read"
       ],
-      "package_sha256": "7162cc1b0470d3ccaabfb1877cb31ddffcba1344f66aa51b910fb9d1748f93ec",
+      "package_sha256": "3b8368d4b9c2dc7c665448e6852493eb58e20922491ffdaabb306d94d8d00327",
       "github_stars": 1
     },
     {
       "plugin_id": "homex.xiaomi_miot",
       "name": "HX-MI",
-      "version": "2.0.0-alpha.44",
+      "version": "2.0.0-alpha.45",
       "type": "prebuilt",
       "description": "小米米家设备接入：账号登录、云端同步、局域网探测、多账号管理。",
-      "package_url": "plugins/hx-mi/releases/homex.xiaomi_miot-2.0.0-alpha.44.hpkg",
+      "package_url": "plugins/hx-mi/releases/homex.xiaomi_miot-2.0.0-alpha.45.hpkg",
       "source_repo": "https://github.com/1169892406/HX-MI",
       "license": "MIT",
       "publisher": {
@@ -58,7 +58,7 @@
         "event.publish",
         "event.subscribe"
       ],
-      "package_sha256": "7731771d9cca4787d9ea70f3ccbebec1b7a4b197cff51564684442169fd18207",
+      "package_sha256": "1baf726713fd3dc542cd9194543f6e374300ef8ff1cd02e3b70f7957674dbdd3",
       "github_stars": 1
     },
     {
