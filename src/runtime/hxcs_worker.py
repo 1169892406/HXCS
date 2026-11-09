@@ -446,6 +446,84 @@ class HxcsWorker:
             idx["plugins"] = [p for p in idx.get("plugins", []) if p.get("type") != "ha_integration"]
         return idx
 
+    def op_test_connection(self, payload: dict[str, Any]) -> dict[str, Any]:
+        """探测注册表可达性（平台的「测试连通」按钮调这个）。
+
+        # 契约（与平台 probe.go 的 TestConnectionView 对齐）
+
+        返回 `{ok, target, latency_ms, provider, failure?}`：
+          · ok=True  ⇒ 注册表 index.json 拉得到且能解析；
+          · ok=False ⇒ failure.kind 给**可分类**的结论（unreachable / timeout /
+                        invalid_response），message 给人看。
+
+        # 为什么分类在这里做（不在平台）
+
+        只有插件同时看得见：用户配的代理、直连回退、HTTP 状态码、解析错误。
+        平台拿到的只是最终结果，在那一层再猜一遍等于造第二套判据
+        （平台 probe.go 的注释也是这个口径）。
+
+        # 为什么不复用 catalog_list
+
+        那个会顺带刷新 GitHub 星数（最多 6s 预算）。诊断要的是"现在通不通"，
+        把它拖成 6 秒会让用户以为测试卡死。这里只做一次最小请求。
+        """
+        if not self.community_enabled:
+            return {
+                "ok": False,
+                "target": self.registry_url,
+                "latency_ms": 0,
+                "failure": {"kind": "disabled",
+                            "message": "社区插件未启用：请先打开「启用社区插件」"},
+            }
+        url = self.registry_url.rstrip("/") + "/index.json"
+        started = time.time()
+        try:
+            body = self._http_get(url, max_bytes=1 << 20)
+        except Exception as exc:
+            elapsed = int((time.time() - started) * 1000)
+            msg = str(exc)
+            # 分类：超时 vs 不可达 vs 其它。这三类的处置完全不同
+            # （等一会儿 / 检查网络或代理 / 看响应内容），混成一个"失败"没法指导。
+            low = msg.lower()
+            if "timeout" in low or "timed out" in low:
+                kind = "timeout"
+            elif "unreachable" in low or "refused" in low or "resolve" in low or "ssl" in low or "connect" in low:
+                kind = "unreachable"
+            else:
+                kind = "failed"
+            return {
+                "ok": False,
+                "target": url,
+                "latency_ms": elapsed,
+                "failure": {"kind": kind, "message": msg[:300]},
+            }
+        elapsed = int((time.time() - started) * 1000)
+        try:
+            idx = json.loads(body)
+            plugins = idx.get("plugins")
+            if not isinstance(plugins, list):
+                raise ValueError("index.json 缺少 plugins 数组")
+        except Exception as exc:
+            return {
+                "ok": False,
+                "target": url,
+                "latency_ms": elapsed,
+                "failure": {"kind": "invalid_response",
+                            "message": f"注册表返回无法解析：{str(exc)[:200]}"},
+            }
+        trust = idx.get("trust_root") or {}
+        return {
+            "ok": True,
+            "target": url,
+            "latency_ms": elapsed,
+            "provider": "github-raw",
+            "sample": {
+                "plugins": len(plugins),
+                "registry_version": idx.get("registry_version", ""),
+                "trust_key_id": trust.get("key_id", ""),
+            },
+        }
+
     def op_catalog_fetch(self, payload: dict[str, Any]) -> dict[str, Any]:
         """下载指定插件的 .hpkg 字节（base64 + sha256）。"""
         if not self.community_enabled:
