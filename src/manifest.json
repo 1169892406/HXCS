@@ -3,7 +3,7 @@
   "api_version": "2",
   "plugin_id": "homex.hxcs",
   "name": "HXCS 社区商店",
-  "version": "1.0.16",
+  "version": "1.0.17",
   "type": "service_integration",
   "runtime": "python",
   "publisher": {
@@ -72,45 +72,101 @@
   "provides": {
     "tools": [
       {
-        "name": "catalog_list"
+        "name": "catalog_list",
+        "title": "读取注册表"
       },
       {
         "name": "catalog_fetch"
       },
       {
-        "name": "community_status"
+        "name": "community_status",
+        "title": "商店状态"
       },
       {
-        "name": "integration_load"
+        "name": "integration_load",
+        "title": "加载集成"
       },
       {
-        "name": "config_flow"
+        "name": "config_flow",
+        "title": "配置 HA 集成",
+        "args_schema": {
+          "type": "object",
+          "properties": {
+            "domain": {
+              "type": "string",
+              "title": "集成标识",
+              "description": "如 midea_ac_lan",
+              "x-options-from": "integrations_list"
+            },
+            "step": {
+              "type": "string",
+              "title": "步骤",
+              "default": "user",
+              "description": "user / discovery / auto / login …"
+            }
+          },
+          "required": [
+            "domain"
+          ]
+        }
       },
       {
-        "name": "entry_setup"
+        "name": "entry_setup",
+        "title": "启动集成"
       },
       {
-        "name": "entry_reload"
+        "name": "entry_reload",
+        "title": "重载集成"
       },
       {
-        "name": "entry_remove"
+        "name": "entry_remove",
+        "title": "移除集成"
       },
       {
-        "name": "service_call"
+        "name": "service_call",
+        "title": "调用服务",
+        "args_schema": {
+          "type": "object",
+          "properties": {
+            "domain": {
+              "type": "string",
+              "title": "域",
+              "description": "如 light / switch"
+            },
+            "service": {
+              "type": "string",
+              "title": "服务",
+              "description": "如 turn_on"
+            },
+            "entity_id": {
+              "type": "string",
+              "title": "实体 ID",
+              "description": "可选"
+            }
+          },
+          "required": [
+            "domain",
+            "service"
+          ]
+        }
       },
       {
-        "name": "integrations_list"
+        "name": "integrations_list",
+        "title": "集成列表"
       },
       {
-        "name": "integration_install"
+        "name": "integration_install",
+        "title": "安装集成"
       },
       {
-        "name": "integration_remove"
+        "name": "integration_remove",
+        "title": "卸载集成"
       },
       {
         "name": "test_connection",
         "risk": "low",
-        "description": "探测注册表可达性（走插件侧代理/直连回退），返回可分类结论"
+        "description": "探测注册表可达性（走插件侧代理/直连回退），返回可分类结论",
+        "title": "获取插件"
       }
     ],
     "views": [
@@ -144,5 +200,5 @@
       }
     ]
   },
-  "changelog": "1.0.16：① 字段顺序与插件原生界面一致（社区插件 → 兼容 HA → 注册表源 → 下载代理 → 出站白名单）；② 声明 test_connection 诊断工具，让标准表单的「测试连通」按钮可用（平台的连接测试按钮只对声明了该工具的插件渲染）。"
+  "changelog": "1.0.17：给工具声明**显示名**（test_connection → 「获取插件」等）与**参数 schema**（config_flow / service_call）。平台据此渲染按钮文案与参数表单，插件不再需要靠自带界面暴露这些入口 —— 这正是 HA「插件只声明 schema、框架渲染」的做法。"
 }
