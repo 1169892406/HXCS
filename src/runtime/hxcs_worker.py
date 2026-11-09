@@ -1072,27 +1072,6 @@ class HxcsWorker:
         return result
 
 
-async def main() -> None:
-    worker = HxcsWorker()
-    loop = asyncio.get_event_loop()
-    while line := await asyncio.to_thread(sys.stdin.readline):
-        try:
-            request = json.loads(line)
-            result = await worker.dispatch(request)
-            response = {"id": request.get("id"), "ok": True, "result": result}
-        except Exception as exc:
-            response = {"id": request.get("id") if "request" in locals() else None,
-                        "ok": False,
-                        "error": {"code": getattr(exc, "code", "HXCS_ERROR"),
-                                   "message": str(exc)}}
-        sys.stdout.write(json.dumps(response) + "\n")
-        sys.stdout.flush()
-
-
-if __name__ == "__main__":
-    asyncio.run(main())
-
-
 def _raw_constraints(marker: Any) -> tuple[tuple[Any, ...], Any]:
     """从 voluptuous 标记里取**原始**候选项与默认值（不做 str 化）。
 
@@ -1174,3 +1153,24 @@ def _coerce_input(user_input: Any, constraints: dict[str, tuple[tuple[Any, ...],
             except ValueError:
                 pass
     return out
+
+
+async def main() -> None:
+    worker = HxcsWorker()
+    loop = asyncio.get_event_loop()
+    while line := await asyncio.to_thread(sys.stdin.readline):
+        try:
+            request = json.loads(line)
+            result = await worker.dispatch(request)
+            response = {"id": request.get("id"), "ok": True, "result": result}
+        except Exception as exc:
+            response = {"id": request.get("id") if "request" in locals() else None,
+                        "ok": False,
+                        "error": {"code": getattr(exc, "code", "HXCS_ERROR"),
+                                   "message": str(exc)}}
+        sys.stdout.write(json.dumps(response) + "\n")
+        sys.stdout.flush()
+
+
+if __name__ == "__main__":
+    asyncio.run(main())

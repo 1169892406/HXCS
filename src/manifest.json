@@ -3,7 +3,7 @@
   "api_version": "2",
   "plugin_id": "homex.hxcs",
   "name": "HXCS 社区商店",
-  "version": "1.0.17",
+  "version": "1.0.19",
   "type": "service_integration",
   "runtime": "python",
   "publisher": {
@@ -200,5 +200,5 @@
       }
     ]
   },
-  "changelog": "1.0.17：给工具声明**显示名**（test_connection → 「获取插件」等）与**参数 schema**（config_flow / service_call）。平台据此渲染按钮文案与参数表单，插件不再需要靠自带界面暴露这些入口 —— 这正是 HA「插件只声明 schema、框架渲染」的做法。"
+  "changelog": "1.0.19：`plugin.ui.resize` 上报增加**内容盒**（contentLeft / contentWidth）。平台在 iframe 外看不到本页布局，此前只能猜宽度来对齐页头按钮，导致「切换到标准表单」按钮落在内容区之外（用户三次反馈）。现在本页量出 `.wrap` 的实际位置与宽度上报，平台据此精确对齐。"
 }

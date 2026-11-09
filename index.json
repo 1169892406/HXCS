@@ -31,10 +31,10 @@
     {
       "plugin_id": "homex.xiaomi_miot",
       "name": "HX-MI",
-      "version": "2.0.0-alpha.49",
+      "version": "2.0.0-alpha.50",
       "type": "prebuilt",
       "description": "小米米家设备接入：账号登录、云端同步、局域网探测、多账号管理。",
-      "package_url": "plugins/hx-mi/releases/homex.xiaomi_miot-2.0.0-alpha.49.hpkg",
+      "package_url": "plugins/hx-mi/releases/homex.xiaomi_miot-2.0.0-alpha.50.hpkg",
       "source_repo": "https://github.com/1169892406/HX-MI",
       "license": "MIT",
       "publisher": {
@@ -58,7 +58,7 @@
         "event.publish",
         "event.subscribe"
       ],
-      "package_sha256": "0ca9dd78dfe733c74b71c851330f98b041de4387d084ae7979ab07b89370cdfa",
+      "package_sha256": "953db1d4f4b1e68bd85df27cc222c301c4c04d5854cfb9075dac2deba90a88ae",
       "github_stars": 1
     },
     {
@@ -83,10 +83,10 @@
     {
       "plugin_id": "homex.hxcs",
       "name": "HXCS 社区商店",
-      "version": "1.0.17",
+      "version": "1.0.19",
       "type": "prebuilt",
       "description": "HOMEX Community Store：社区插件商店 + HA 兼容运行时。安装后在配置页开启「社区插件」显示社区注册表中的第三方插件；开启「兼容 HA 插件」后支持加载社区注册表中的 HA 集成。",
-      "package_url": "plugins/hxcs/releases/homex.hxcs-1.0.17.hpkg",
+      "package_url": "plugins/hxcs/releases/homex.hxcs-1.0.19.hpkg",
       "source_repo": "https://github.com/1169892406/HXCS",
       "license": "MIT",
       "github_stars": 1,
@@ -98,7 +98,7 @@
         "network.outbound",
         "config.read"
       ],
-      "package_sha256": "d9fb8c67efb0e874864c439849e66abe93ac3f411ea2c03fdba27e18afa24e00"
+      "package_sha256": "1d4dde1ecd92d2cffea8bbd22958ec61d2269901d4794dba4fbe1e2e3887413e"
     },
     {
       "plugin_id": "hx.mqtt_broker",

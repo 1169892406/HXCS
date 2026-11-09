@@ -273,15 +273,46 @@
    * 变化时才发（子像素抖动会让宿主每帧 setState）。重复上报同值是幂等的。
    */
   var lastReportedHeight = 0;
+  var lastReportedBox = '';
   var resizeTimer = null;
 
+  /**
+   * 上报内容高度 + **内容盒**（2026-11-09）。
+   *
+   * # 为什么还要报水平信息
+   *
+   * 平台在 iframe 外面，看不到本页布局。它想在页头放一个按钮并对齐到本页
+   * 内容区（`.wrap{max-width:1080px;margin:0 auto}`），只能靠猜宽度 ——
+   * 猜 1080 时视口更宽就落到整宽右端、猜 880 时另一插件是 1200，
+   * 用户三次反馈「按钮还在右上角」。
+   *
+   * 本页自己量一下 `.wrap` 的 getBoundingClientRect() 就有准确答案：
+   *   contentLeft  = 内容盒左边缘相对视口的偏移
+   *   contentWidth = 内容盒宽度
+   *
+   * 平台据此把按钮放在内容盒右边缘 —— 精确对齐，不再猜。
+   */
   function reportContentHeight() {
-    var h = Math.ceil(document.body.getBoundingClientRect().height);
+    var rect = document.body.getBoundingClientRect();
+    var h = Math.ceil(rect.height);
     if (h <= 0) return;
-    if (Math.abs(h - lastReportedHeight) < 1) return;
+    var payload = { height: h };
+    // 内容盒：找本页的主容器（.wrap）；找不到就报 body 的（等价于整宽）。
+    var wrap = document.querySelector('.wrap') || document.body;
+    var box = wrap.getBoundingClientRect();
+    if (box.width > 0) {
+      payload.contentLeft = Math.round(box.left);
+      payload.contentWidth = Math.round(box.width);
+    }
+    // 高度与内容盒都按整数去重：子像素抖动不该让宿主每帧 setState。
+    var boxKey = payload.contentLeft + 'x' + payload.contentWidth;
+    var heightChanged = Math.abs(h - lastReportedHeight) >= 1;
+    var boxChanged = boxKey !== lastReportedBox;
+    if (!heightChanged && !boxChanged) return;
     lastReportedHeight = h;
-    // 失败静默：上报高度是**体验优化**，不该在通道未就绪时刷错误提示。
-    rpc('plugin.ui.resize', { height: h }).catch(function () {});
+    lastReportedBox = boxKey;
+    // 失败静默：上报是**体验优化**，不该在通道未就绪时刷错误提示。
+    rpc('plugin.ui.resize', payload).catch(function () {});
   }
 
   function scheduleHeightReport() {
