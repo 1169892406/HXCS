@@ -3,7 +3,7 @@
   "api_version": "2",
   "plugin_id": "homex.hxcs",
   "name": "HXCS 社区商店",
-  "version": "1.0.14",
+  "version": "1.0.15",
   "type": "service_integration",
   "runtime": "python",
   "publisher": {
@@ -107,7 +107,37 @@
       {
         "name": "integration_remove"
       }
+    ],
+    "views": [
+      {
+        "name": "registered_plugins",
+        "title": "注册插件",
+        "description": "注册表提供的插件清单（HXC 商店插件与 HA 集成包）。",
+        "tool": "catalog_list",
+        "columns": [
+          {
+            "title": "插件",
+            "field": "name"
+          },
+          {
+            "title": "标识",
+            "field": "plugin_id",
+            "kind": "mono"
+          },
+          {
+            "title": "版本",
+            "field": "version",
+            "kind": "mono",
+            "suffix": ""
+          },
+          {
+            "title": "类型",
+            "field": "type",
+            "kind": "badge"
+          }
+        ]
+      }
     ]
   },
-  "changelog": "1.0.14：① 修「原生界面显示不对」—— 平台侧把原生视图包进了带宽度约束的容器，导致 iframe 内容被裁切、高度算错；② 补 network_allowed_hosts 的中文标题与说明（原样显示字段名对用户没有意义）。"
+  "changelog": "1.0.15：用平台新增的**声明式列表**（provides.views）把「注册插件」清单带进标准表单 —— 平台按声明渲染表格，本插件不需要自带界面就能展示这份清单。这是「标准表单显示不全」的收口：配置项走 schema、动作用工具按钮、列表用视图声明。"
 }
