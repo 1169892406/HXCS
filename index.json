@@ -122,10 +122,10 @@
     {
       "plugin_id": "hx.sanotts",
       "name": "本地播报 · sanoTTS",
-      "version": "1.0.0",
+      "version": "1.0.1",
       "type": "prebuilt",
       "description": "本地中文语音播报：一句话在本机合成成 WAV，完全离线、不联网、不上传文本。引擎是 sanoTTS 中文语音包（1.55M 参数，piperlite 图），推理用插件自带的 C 内核（无 numpy、无 Python 依赖），音色为标准普通话「小雅」。工具 speak / audio_chunk / voices / status，插件自带配置页可直接试听。单次播报上限 108 字（模型 432 个音素 id、中文每字 4 个），超限明确报错并提示拆分。",
-      "package_url": "plugins/sanotts/releases/hx.sanotts-1.0.0.hpkg",
+      "package_url": "plugins/sanotts/releases/hx.sanotts-1.0.1.hpkg",
       "source_repo": "https://github.com/1169892406/HX-SANOTTS",
       "license": "GPL-3.0",
       "publisher": {
@@ -135,7 +135,7 @@
       "permissions": [
         "config.read"
       ],
-      "package_sha256": "5ee2c0246f1f0787598ad02beed62e754976afb38339e30f57b3507ccda1cc63",
+      "package_sha256": "d5e1281618c9ec0da1b033da84754fce7431737844d3cea31274ac934b21c611",
       "github_stars": 1
     }
   ]
