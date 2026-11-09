@@ -94,6 +94,17 @@ class IntegrationRuntime:
                 if inspect.isawaitable(result): await result
         self.hass = HomeAssistant(projector=projector)
         self.hass.config_entries = self
+        # ## 装上 hass.config（2026-11-09）
+        #
+        # 集成普遍用 `self.hass.config.path("...")` 定位自己的存储目录
+        # （midea 的设备缓存与配置缓存都这么写）。缺这个属性时，配置流程走到
+        # "选设备"那步必崩：AttributeError: 'HomeAssistant' object has no
+        # attribute 'config'（用户实测）。
+        #
+        # 映射到本插件在本家庭的持久化 root：那是"可写且重启后还在"的唯一正确
+        # 位置，也不给集成宿主任意路径。
+        from hx_ha_runtime.core import _HassConfig  # 同包，避免循环导入写在函数内
+        self.hass.config = _HassConfig(str(self.root))
         self.hass.data["hx_registry"] = self.registry
         self.hass.data["hx_http_session"] = self.network_session
         return self

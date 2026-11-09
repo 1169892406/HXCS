@@ -3,7 +3,7 @@
   "api_version": "2",
   "plugin_id": "homex.hxcs",
   "name": "HXCS 社区商店",
-  "version": "1.0.12",
+  "version": "1.0.13",
   "type": "service_integration",
   "runtime": "python",
   "publisher": {
@@ -108,5 +108,5 @@
       }
     ]
   },
-  "changelog": "1.0.12：声明 entry.ui_default=native。本插件的界面承载了平台通用表单表达不了的东西（注册表插件表格、HA 集成列表与加载状态），走标准表单会丢掉这些功能，所以声明默认用原生界面；配置项与动作仍可由用户在页头切换到标准表单。"
+  "changelog": "1.0.13：① 保持 entry.ui_default=native（1.0.12 起的默认视图声明，避免默认落到通用表单而丢掉注册表表格/HA 集成列表）；② HA 兼容层修两处 midea 配置流程的阻塞 —— 按插件给出的候选值还原user_input 类型（int 设备 ID 经 JSON 往返变成字符串导致 KeyError）、补 hass.config.path（集成用它定位自身持久化目录，缺失时 AttributeError）。"
 }

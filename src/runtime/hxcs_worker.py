@@ -205,9 +205,15 @@ def _selector_of(marker) -> dict[str, Any]:
     return info
 
 
-def _flow_result_to_json(result: dict[str, Any]) -> dict[str, Any]:
-    """把 run_config_flow 的返回值拍平成前端可读的 JSON。"""
+def _flow_result_to_json(result: dict[str, Any]) -> tuple[dict[str, Any], dict[str, tuple[tuple[Any, ...], Any]]]:
+    """把 run_config_flow 的返回值拍平成前端可读的 JSON。
+
+    返回 (前端 JSON, 字段类型线索)。后者用于下一轮把字符串还原成原始类型，
+    详见 HxcsWorker.__init__ 里 _field_types 的注释。
+    """
     out: dict[str, Any] = {"type": result.get("type", "unknown")}
+    # coerce: field -> (原始候选值元组, 原始默认值)。空元组 = 没有候选约束。
+    coerce: dict[str, tuple[tuple[Any, ...], Any]] = {}
     if result.get("step_id"):
         out["step_id"] = result["step_id"]
     if result.get("errors"):
@@ -255,17 +261,41 @@ def _flow_result_to_json(result: dict[str, Any]) -> dict[str, Any]:
                         if d is not None and not callable(d):
                             default = d
                 field = {"key": str(real_key), **_selector_of(marker)}
+                # 记录**原始**候选项（_selector_of 把 value 都 str 化了，
+                # 那是给前端看的形态；还原类型要用原值）。
+                try:
+                    raw_opts, raw_default = _raw_constraints(marker)
+                    if raw_opts or raw_default is not None:
+                        coerce[str(real_key)] = (raw_opts, raw_default)
+                except Exception:
+                    pass
                 if default is not None:
                     field["default"] = default
                 field["required"] = required
                 fields.append(field)
         out["fields"] = fields
-    return out
+    return out, coerce
 
 
 class HxcsWorker:
     def __init__(self) -> None:
         self.runtime: IntegrationRuntime | None = None
+        # ## 上一轮 form 的字段类型线索（2026-11-09 修 midea KeyError）
+        #
+        # `domain -> {field_name: coerce_entry}`，coerce_entry 是
+        # `(原始候选值集合, 原始默认值)`：用来把 JSON 回来的字符串**还原成
+        # 集成期望的类型**。
+        #
+        # 为什么必须有：midea 的 async_step_auto 写的是
+        #     device = self.devices[user_input[CONF_DEVICE]]
+        # 而 self.devices 的 key 是 **int**（discover() 返回的设备 ID）。
+        # HA 原生世界里 user_input 由 Python 直接构造，int 一路保持 int；
+        # 但 HOMEX 走 JSON-RPC 往返，前端发回来必然是全字符串 ⇒
+        # KeyError: 208907212949996（用户实测的 HXCS_ERROR）。
+        #
+        # 还原依据只用**插件自己给的**信息（vol.In 的候选项 / 默认值的类型），
+        # 平台不猜业务语义。
+        self._field_types: dict[str, dict[str, tuple[tuple[Any, ...], Any]]] = {}
         self.generation = 0
         self.draining = False
         self.config: dict[str, Any] = {}
@@ -828,10 +858,23 @@ class HxcsWorker:
         # 随机 id 要求前端每轮都带同一个值 —— 前端漏带就退化回旧行为，
         # 等于修复随时可能失效。
         domain = str(payload.get("domain", ""))
+        # ## 按上一轮 form 的类型线索还原（2026-11-09 修 midea KeyError）
+        #
+        # 前端开出的值是 JSON 字符串（HTML option value 只能是字符串），而集成
+        # 可能用 int 作 dict key（midea 的 self.devices 就是）。这里按插件自己
+        # 给出的候选项/默认值把类型还原回去 —— 依据只来自插件，平台不猜语义。
+        user_input = _coerce_input(user_input, self._field_types.get(domain, {}))
         result = await self.runtime.run_config_flow(
             domain, user_input, payload.get("step", "user"), flow_handle=domain
         )
-        return _flow_result_to_json(result)
+        out, coerce = _flow_result_to_json(result)
+        # 记下这一轮的类型线索，供下一次调用还原（同一 domain 覆盖写：
+        # 配置流程是串行的，旧轮次的线索对下一轮没有意义）。
+        if coerce:
+            self._field_types[domain] = coerce
+        else:
+            self._field_types.pop(domain, None)
+        return out
 
     async def op_entry_setup(self, payload: dict[str, Any]) -> dict[str, Any]:
         self._require_ha()
@@ -970,3 +1013,86 @@ async def main() -> None:
 
 if __name__ == "__main__":
     asyncio.run(main())
+
+
+def _raw_constraints(marker: Any) -> tuple[tuple[Any, ...], Any]:
+    """从 voluptuous 标记里取**原始**候选项与默认值（不做 str 化）。
+
+    与 `_selector_of` 的分工：那个产出"给前端看的形态"（value 一律字符串，
+    因为 HTML 的 option value 只能是字符串）；这个产出"还原类型用的原值"。
+
+    返回 (候选项元组, 默认值)。没有候选约束时元组为空 —— 调用方据此决定是否
+    需要还原（空元组 + 无默认值 ⇒ 不需要）。
+    """
+    inner = marker
+    default: Any = None
+    if hasattr(inner, "schema") and not isinstance(inner, (dict, list, str)):
+        d = getattr(inner, "default", None)
+        if d is not None and not callable(d):
+            default = d
+        inner = inner.schema
+    else:
+        d = getattr(marker, "default", None)
+        if d is not None and not callable(d):
+            default = d
+
+    container = getattr(inner, "container", None)
+    val = container if container is not None else getattr(inner, "schema", inner)
+    if isinstance(val, dict):
+        return tuple(val.keys()), default
+    if isinstance(val, (list, tuple, set)):
+        return tuple(val), default
+    return (), default
+
+
+def _coerce_input(user_input: Any, constraints: dict[str, tuple[tuple[Any, ...], Any]]) -> Any:
+    """把 JSON 回来的 user_input 按上一轮 form 的类型线索还原。
+
+    # 规则（只做**不改变语义**的还原）
+
+      1. 候选值里有类型相同但"字符串形态相同"的原始值 ⇒ 用那个原始值
+         （`"208907212949996"` → `208907212949996`）；
+      2. 没有候选约束时，看默认值的类型：默认是 int/bool 就把字符串转过去；
+      3. 都不命中 ⇒ **原样保留字符串**（宁可让集成自己报错，也不猜）。
+
+    # 为什么不做全量类型推断
+
+    集成期望什么类型只有它自己知道。平台能拿到的证据只有"它自己给出的候选值
+    和默认值"，用这两样还原是**有依据**的；再多猜一步就会把
+    `"0755"` 这样的字符串电话/编号转成 int 而丢前导零 —— 那类破坏比原错误更难查。
+    """
+    if not isinstance(user_input, dict) or not constraints:
+        return user_input
+    out = dict(user_input)
+    for key, (raw_opts, raw_default) in constraints.items():
+        if key not in out:
+            continue
+        v = out[key]
+        if not isinstance(v, str):
+            continue
+        # ① 候选值里找"字符串形态相同"的原始值
+        matched = False
+        for opt in raw_opts:
+            if not isinstance(opt, bool) and str(opt) == v:
+                out[key] = opt
+                matched = True
+                break
+        if matched:
+            continue
+        # ② 用默认值的类型
+        if isinstance(raw_default, bool):
+            if v.lower() in ("true", "1", "yes", "on"):
+                out[key] = True
+            elif v.lower() in ("false", "0", "no", "off"):
+                out[key] = False
+        elif isinstance(raw_default, int) and not isinstance(raw_default, bool):
+            try:
+                out[key] = int(v)
+            except ValueError:
+                pass
+        elif isinstance(raw_default, float):
+            try:
+                out[key] = float(v)
+            except ValueError:
+                pass
+    return out
