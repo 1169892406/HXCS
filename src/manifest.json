@@ -3,7 +3,7 @@
   "api_version": "2",
   "plugin_id": "homex.hxcs",
   "name": "HXCS 社区商店",
-  "version": "1.0.11",
+  "version": "1.0.12",
   "type": "service_integration",
   "runtime": "python",
   "publisher": {
@@ -13,7 +13,8 @@
   },
   "entry": {
     "python": "runtime/hxcs_worker.py",
-    "ui": "ui/index.html"
+    "ui": "ui/index.html",
+    "ui_default": "native"
   },
   "description": "HOMEX Community Store：社区插件商店 + HA 兼容运行时。安装后开启「社区插件」显示社区注册表中的第三方插件；开启「兼容 HA 插件」后可加载并运行 HA 风格集成包。单插件，无独立进程，无独立端口。",
   "permissions": [
@@ -106,5 +107,6 @@
         "name": "integration_remove"
       }
     ]
-  }
+  },
+  "changelog": "1.0.12：声明 entry.ui_default=native。本插件的界面承载了平台通用表单表达不了的东西（注册表插件表格、HA 集成列表与加载状态），走标准表单会丢掉这些功能，所以声明默认用原生界面；配置项与动作仍可由用户在页头切换到标准表单。"
 }

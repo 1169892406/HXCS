@@ -71,6 +71,17 @@ class IntegrationRuntime:
         self.vault = CredentialVault(root / "secrets", master_key)
         self.network_session = ControlledSession(network_policy or NetworkPolicy())
         self.entries: dict[str, ConfigEntry] = {}
+        # ## 未完成的 config flow 必须**跨调用保留**（2026-11-09 修 midea 报错）
+        #
+        # HA 的 config_flow 是**有状态**的：实例在 async_step_user 里把发现到的
+        # 设备列表存进 self.devices，下一步 async_step_auto 再从那里按 id 取。
+        # 而平台此前每次 invoke 都 `flow_cls()` 新建一个实例 —— 第二步拿到的
+        # 是空实例，`self.devices[device_id]` 直接 KeyError，用户看到的是
+        # 「HXCS_ERROR: 208907212949996」（一个没有说明的设备 ID，实测）。
+        #
+        # HA 原生用 hass.config_entries.flow 缓存活动流程；这里等价地按
+        # (domain, handle) 保留实例。handle 由下一处注释说明。
+        self._flows: dict[tuple[str, str], Any] = {}
         self.integrations: dict[str, tuple[Any, Any]] = {}
         self.platforms: dict[tuple[str, str], EntityPlatform] = {}
         self._load_entries()
@@ -93,17 +104,34 @@ class IntegrationRuntime:
         self.integrations[package.domain] = (package, module)
         return package
 
-    async def run_config_flow(self, domain: str, user_input: dict[str, Any] | None = None, step: str = "user"):
+    async def run_config_flow(self, domain: str, user_input: dict[str, Any] | None = None,
+                             step: str = "user", flow_handle: str | None = None):
         package, _ = self.integrations[domain]
         flow_module = __import__(f"{package.module_name}.config_flow", fromlist=["ConfigFlow"])
         flow_cls = _pick_config_flow(flow_module, domain)
-        flow: ConfigFlow = flow_cls()
-        flow.hass = self.hass
+        # ## 流程实例复用（2026-11-09）
+        #
+        # handle 由调用方给（worker 侧从 payload 取，前端每轮流程带同一个）。
+        # 缺失时退化成一次性实例（保持旧行为，不因缺 handle 而失败）。
+        handle = str(flow_handle or "")
+        key = (domain, handle) if handle else None
+        flow: ConfigFlow | None = self._flows.get(key) if key else None
+        if flow is None:
+            flow = flow_cls()
+            flow.hass = self.hass
+            if key:
+                self._flows[key] = flow
+        else:
+            flow.hass = self.hass
         try:
             result = await getattr(flow, f"async_step_{step}")(user_input)
         except AbortFlow as exc:
             # 集成主动终止（already_configured / single_instance_allowed 等）
             return {"type": "abort", "reason": exc.reason}
+        # 流程终结时丢掉实例：create_entry 之后再复用会把"已完成"的流程
+        # 当成进行中的（用户下次添加同型号设备会撞 already_configured）。
+        if key and result.get("type") in ("create_entry", "abort"):
+            self._flows.pop(key, None)
         if result.get("type") == "create_entry":
             unique = result.get("unique_id")
             if unique and any(e.domain == domain and e.unique_id == unique for e in self.entries.values()):

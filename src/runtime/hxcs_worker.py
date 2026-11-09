@@ -817,8 +817,19 @@ class HxcsWorker:
         user_input = payload.get("input", None)
         if isinstance(user_input, dict) and not user_input:
             user_input = None
+        # ## flow_handle：同一 domain 只保留一条进行中的流程（2026-11-09）
+        #
+        # midea 这类集成的 config_flow 把发现结果存在**实例**上（self.devices），
+        # 下一步按 id 取。平台此前每次调用都新建实例 ⇒ 第二步必 KeyError
+        # （用户实测：HXCS_ERROR: 208907212949996 —— 一个无说明的设备 ID）。
+        #
+        # 用 domain 当 handle 而不是随机 id：同一插件的配置流程天然是串行的
+        # （用户在界面上一步步点），并发两条同 domain 流程没有真实场景，而
+        # 随机 id 要求前端每轮都带同一个值 —— 前端漏带就退化回旧行为，
+        # 等于修复随时可能失效。
+        domain = str(payload.get("domain", ""))
         result = await self.runtime.run_config_flow(
-            payload["domain"], user_input, payload.get("step", "user")
+            domain, user_input, payload.get("step", "user"), flow_handle=domain
         )
         return _flow_result_to_json(result)
 
