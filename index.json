@@ -31,10 +31,10 @@
     {
       "plugin_id": "homex.xiaomi_miot",
       "name": "HX-MI",
-      "version": "2.0.0-alpha.57",
+      "version": "2.0.0-alpha.58",
       "type": "prebuilt",
       "description": "小米米家设备接入：账号登录、云端同步、局域网探测、多账号管理。",
-      "package_url": "plugins/hx-mi/releases/homex.xiaomi_miot-2.0.0-alpha.57.hpkg",
+      "package_url": "plugins/hx-mi/releases/homex.xiaomi_miot-2.0.0-alpha.58.hpkg",
       "source_repo": "https://github.com/1169892406/HX-MI",
       "license": "MIT",
       "publisher": {
@@ -58,7 +58,7 @@
         "event.publish",
         "event.subscribe"
       ],
-      "package_sha256": "fa61ac1d6deb74179f6a1aa0f2e2b026067ccfe8fcecc489b8b685a3c6b617db",
+      "package_sha256": "39986e7de2159911a522f6e23354fefca52d8107854fbffe9d3da75a124afd08",
       "github_stars": 1
     },
     {
