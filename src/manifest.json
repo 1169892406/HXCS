@@ -3,13 +3,12 @@
   "api_version": "2",
   "plugin_id": "homex.hxcs",
   "name": "HXCS 社区商店",
-  "version": "1.0.19",
+  "version": "1.0.20",
   "type": "service_integration",
   "runtime": "python",
   "publisher": {
-    "id": "hx-community",
-    "display_name": "HX Community",
-    "homepage": "https://homex.dev"
+    "id": "homex",
+    "display_name": "HOMEX Official"
   },
   "entry": {
     "python": "runtime/hxcs_worker.py",
@@ -66,7 +65,7 @@
   },
   "signature": {
     "algorithm": "ed25519",
-    "key_id": "hx-mi-community"
+    "key_id": "homex-official"
   },
   "min_api_version": "2",
   "provides": {
@@ -200,5 +199,5 @@
       }
     ]
   },
-  "changelog": "1.0.19：`plugin.ui.resize` 上报增加**内容盒**（contentLeft / contentWidth）。平台在 iframe 外看不到本页布局，此前只能猜宽度来对齐页头按钮，导致「切换到标准表单」按钮落在内容区之外（用户三次反馈）。现在本页量出 `.wrap` 的实际位置与宽度上报，平台据此精确对齐。"
+  "changelog": "修「注册表不可达（直连慢或被阻断）」：catalog_list 不再在同步路径上刷新 GitHub 星数。旧实现每次打开商店都要串行打 4 个 GitHub API（服务器实测 10.04 秒），叠加拉索引后逼近平台 RPC 30 秒上限，一旦超时整只 worker 被杀 —— 用户看到「不可达」，而同一秒 curl 直连是 200。现在只读已有缓存（0.000 秒，0 次网络），过期则由下一次请求的惰性 tick 在后台补。"
 }

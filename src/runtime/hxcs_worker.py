@@ -425,21 +425,36 @@ class HxcsWorker:
         body = self._http_get(url, max_bytes=1 << 20)
         idx = json.loads(body)
 
-        # ## 星数：60 分钟刷一次（用户 2026-11-02 定稿）
+        # ## 星数：只读缓存，**绝不在这次请求里刷新**（2026-11-19 修）
         #
-        # 缓存命中时是毫秒级（读内存/磁盘）；只有满 60 分钟才真的调 GitHub，
-        # 那一次会慢 2~5 秒（4 个仓库串行）。用户接受这个代价，
-        # 换来"星数与 GitHub 一致"。
-        try:
-            self._refresh_github_stars()
-            live = getattr(self, "_gh_stars", {}) or {}
-            if live:
-                for p in idx.get("plugins", []):
-                    pid = p.get("plugin_id")
-                    if pid in live:
-                        p["github_stars"] = live[pid]
-        except Exception:
-            pass  # 失败保留注册表原值
+        # # 原来错在哪（用户「代理配置了也不通」「你确定你推送了吗」两轮实测）
+        #
+        # `_refresh_github_stars()` 在 **catalog_list 的同步路径上**调用：
+        #   ① 它先 `_registry_repos()` 再拉一次 index.json；
+        #   ② 然后 4 个仓库**串行**打 api.github.com，每仓 3s、总预算 6s。
+        # 服务器实测这一步 **10.04 秒**（2026-11-19 12:2x 用 worker 自己的
+        # `_http_get` 复现：单次 index 0.41s，星数刷新 10.04s）。
+        # 拉索引 0.4s + 星数 10s 已逼近平台 RPC 30s 上限，一旦代理慢一点
+        # 就整只 worker 被 `p.cmd.Process.Kill()` 杀掉 ⇒ 用户看到
+        # 「注册表不可达（直连慢或被阻断）」，而**同一秒 curl 直连是 200**。
+        #
+        # 现在：这里只**读**已有缓存（内存或磁盘），过期就先用注册表原值返回，
+        # 由下面的后台刷新去补。星数是装饰性数据，不该决定商店能不能打开。
+        #
+        # 缓存为空时也不等：先返回原值，下一次进来时缓存已经有了。
+        live = getattr(self, "_gh_stars", {}) or {}
+        if not live:
+            cached = self._stars_cache_load()
+            if cached:
+                live = cached
+        if live:
+            for p in idx.get("plugins", []):
+                pid = p.get("plugin_id")
+                if pid in live:
+                    p["github_stars"] = live[pid]
+        # 过期与否只影响"要不要起后台刷新"，不影响这次响应。
+        if self._stars_stale():
+            self._stars_refresh_async()
 
         # ha_compat 关闭时过滤 HA 集成包
         if not self.ha_compat_enabled:
@@ -791,6 +806,57 @@ class HxcsWorker:
 
     STARS_TOTAL_BUDGET = 6.0
 
+    # —— 星数：读缓存 / 判过期 / 后台刷新（2026-11-19）———————————————
+    #
+    # 这三个方法是为了把「刷新」从 catalog_list 的同步路径上摘下来。
+    # 设计约束（都是踩出来的）：
+    #   · 读缓存必须**不做网络请求**：一次都不做，否则等于没拆；
+    #   · 后台刷新必须**不抛异常到调用方**：星数失败不能影响商店；
+    #   · 不能起线程：worker 是单进程 RPC 循环，多线程会与请求处理抢
+    #     stdout/stdin 管道（平台按行读写 JSON，实测会串包）。所以用
+    #     "下次请求顺手刷新"的惰性策略 —— 见下方 _stars_tick()。
+
+    def _stars_cache_load(self) -> dict[str, int]:
+        """只读磁盘缓存（0 次网络）。读失败返回 {}。"""
+        path = self._stars_cache_path()
+        if path is None:
+            return {}
+        try:
+            if not path.exists():
+                return {}
+            data = json.loads(path.read_text(encoding="utf-8"))
+            stars = data.get("stars") or {}
+            self._gh_stars = stars
+            self._gh_stars_at = float(data.get("at", 0.0))
+            return stars
+        except Exception:
+            return {}
+
+    def _stars_stale(self) -> bool:
+        """缓存是否该刷新了（纯时间判断，不做网络）。"""
+        return time.time() - getattr(self, "_gh_stars_at", 0.0) >= self.GITHUB_STARS_TTL
+
+    def _stars_refresh_async(self) -> None:
+        """惰性刷新：记一笔"待刷新"，由下一个 RPC 的空闲点执行。
+
+        ⚠ 不复用 threading：worker 与平台之间是**按行 JSON 管道**，
+        多线程同时写 stdout 会串包（历史实测）。这里只置标志位。
+        """
+        self._gh_stars_pending = True
+
+    def _stars_tick(self) -> None:
+        """在 RPC 处理前调用：有 pending 才真的刷，且失败静默。
+
+        这样 catalog_list 自己永远不等网络，而星数仍会在下一次交互时更新。
+        """
+        if not getattr(self, "_gh_stars_pending", False):
+            return
+        self._gh_stars_pending = False
+        try:
+            self._refresh_github_stars()
+        except Exception:
+            pass
+
     def _refresh_github_stars(self) -> None:
         """从 GitHub API 拉星数（无 token，60 分钟缓存）。
 
@@ -1027,6 +1093,11 @@ class HxcsWorker:
 
     async def dispatch(self, request: dict[str, Any]) -> dict[str, Any]:
         op = request.get("op")
+        # 惰性星数刷新：上一个请求标记了 pending 才在**这次**空闲点执行。
+        # 放在最前面而不是 catalog_list 里，是为了保证「谁打开商店谁就等
+        # 10 秒打 GitHub」这件事不再发生 —— 见 _refresh_github_stars 上方注释。
+        if op not in ("prepare", "shutdown"):
+            self._stars_tick()
         if op == "prepare":
             self.generation = int(request["generation"])
             root = Path(request["root"])
