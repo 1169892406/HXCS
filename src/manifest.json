@@ -3,7 +3,7 @@
   "api_version": "2",
   "plugin_id": "homex.hxcs",
   "name": "HXCS 社区商店",
-  "version": "1.0.20",
+  "version": "1.0.21",
   "type": "service_integration",
   "runtime": "python",
   "publisher": {
@@ -201,5 +201,5 @@
       }
     ]
   },
-  "changelog": "修「注册表不可达（直连慢或被阻断）」：catalog_list 不再在同步路径上刷新 GitHub 星数。旧实现每次打开商店都要串行打 4 个 GitHub API（服务器实测 10.04 秒），叠加拉索引后逼近平台 RPC 30 秒上限，一旦超时整只 worker 被杀 —— 用户看到「不可达」，而同一秒 curl 直连是 200。现在只读已有缓存（0.000 秒，0 次网络），过期则由下一次请求的惰性 tick 在后台补。"
+  "changelog": "注册表迁到独立仓库 HXCS-Registry（发插件版本不再需要动 HXCS 源码仓库）；默认 registry_url 指向新地址。同时包含 1.0.20 的修复：catalog_list 不再在同步路径刷新 GitHub 星数（服务器实测该步 9.98 秒，叠加拉索引后撞 30 秒 RPC 上限被 Kill ⇒ 界面显示「注册表不可达」）。"
 }

@@ -316,7 +316,17 @@ class HxcsWorker:
 
     @property
     def registry_url(self) -> str:
-        return str(self._cfg("registry_url", "https://raw.githubusercontent.com/1169892406/HXCS/main"))
+        # ## 默认注册表已迁到独立仓库（2026-11-19）
+        #
+        # # 为什么拆库
+        #
+        # 原先 index.json 与 HXCS 源码同库。发一个插件版本要动源码仓库 ——
+        # 注册表更新被源码的推送权限、发布节奏一起拖住，而这两件事本来就无关。
+        # 拆开后：发插件 = 只写 HXCS-Registry；改 HXCS 源码 = 只写源码仓库。
+        #
+        # 旧地址仍然可用（本行只是"新装默认值"）。已装实例的 registry_url 存在
+        # 安装配置里，不会被这行改变 —— 需要时在配置页改一次即可。
+        return str(self._cfg("registry_url", "https://raw.githubusercontent.com/1169892406/HXCS-Registry/main"))
 
     # —— HTTP 工具（Python 直连，不走宿主 session）—————————————————
 
