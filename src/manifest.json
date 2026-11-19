@@ -7,8 +7,9 @@
   "type": "service_integration",
   "runtime": "python",
   "publisher": {
-    "id": "homex",
-    "display_name": "HOMEX Official"
+    "id": "hx-community",
+    "display_name": "HX Community",
+    "homepage": "https://homex.dev"
   },
   "entry": {
     "python": "runtime/hxcs_worker.py",
@@ -65,7 +66,8 @@
   },
   "signature": {
     "algorithm": "ed25519",
-    "key_id": "homex-official"
+    "key_id": "hx-mi-community",
+    "value": ""
   },
   "min_api_version": "2",
   "provides": {

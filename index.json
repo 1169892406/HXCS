@@ -91,14 +91,14 @@
       "license": "MIT",
       "github_stars": 1,
       "publisher": {
-        "id": "homex",
-        "display_name": "HOMEX Official"
+        "id": "hx-community",
+        "display_name": "HX Community"
       },
       "permissions": [
         "network.outbound",
         "config.read"
       ],
-      "package_sha256": "54ee438e52b49532d7c3b5e3cae56725d36ca1ced73a5583e46cc27253a8de0d"
+      "package_sha256": "3dde260f86cdeedde090389e3857d3d2e5179ab356434c1165ec1c5f9d49cecf"
     },
     {
       "plugin_id": "hx.mqtt_broker",
