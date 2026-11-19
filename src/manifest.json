@@ -3,7 +3,7 @@
   "api_version": "2",
   "plugin_id": "homex.hxcs",
   "name": "HXCS 社区商店",
-  "version": "1.0.21",
+  "version": "1.0.22",
   "type": "service_integration",
   "runtime": "python",
   "publisher": {
@@ -201,5 +201,5 @@
       }
     ]
   },
-  "changelog": "注册表迁到独立仓库 HXCS-Registry（发插件版本不再需要动 HXCS 源码仓库）；默认 registry_url 指向新地址。同时包含 1.0.20 的修复：catalog_list 不再在同步路径刷新 GitHub 星数（服务器实测该步 9.98 秒，叠加拉索引后撞 30 秒 RPC 上限被 Kill ⇒ 界面显示「注册表不可达」）。"
+  "changelog": "星数刷新改为真正的后台任务：1.0.21 的惰性 tick 在冷缓存时实测仍把 catalog_list 拖到 29.6 秒（贴着平台 30 秒上限）。现在刷新在 asyncio 后台线程跑（只做网络与内存写入，不碰 stdout 管道），dispatch 内零网络刷新；catalog_list 解析索引时顺手把 repos 映射喂给后台（省掉一次无预算上限的重复拉取），单仓超时 3s→2s、总预算 6s→4s。"
 }

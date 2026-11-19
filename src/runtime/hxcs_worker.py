@@ -341,7 +341,7 @@ class HxcsWorker:
     # 平台不杀进程，下一次调用照常可用。
     HTTP_TIMEOUT = 12.0
     # 星数刷新是**装饰性**数据，给更短的预算，绝不拖累主路径。
-    STARS_TIMEOUT = 3.0
+    STARS_TIMEOUT = 2.0
 
     def _http_get(self, url: str, max_bytes: int = 32 * 1024 * 1024,
                   extra_headers: dict[str, str] | None = None,
@@ -466,6 +466,13 @@ class HxcsWorker:
         if self._stars_stale():
             self._stars_refresh_async()
 
+        # 把 repos 映射喂给后台刷新（1.0.22）：旧行为里 _refresh_github_stars
+        # 会自己再拉一次 index.json —— 无预算上限的那一次 fetch 正是 29.6s
+        # 抖动的主力。现在直接复用刚解析好的 idx，0 次额外网络。
+        self._repos_cache = {
+            p["plugin_id"]: p["source_repo"]
+            for p in idx.get("plugins", []) if p.get("source_repo")
+        }
         # ha_compat 关闭时过滤 HA 集成包
         if not self.ha_compat_enabled:
             idx["plugins"] = [p for p in idx.get("plugins", []) if p.get("type") != "ha_integration"]
@@ -814,7 +821,7 @@ class HxcsWorker:
     #   · 失败静默回落注册表静态值（不影响任何业务）
     GITHUB_STARS_TTL = 60 * 60  # 60 分钟
 
-    STARS_TOTAL_BUDGET = 6.0
+    STARS_TOTAL_BUDGET = 4.0
 
     # —— 星数：读缓存 / 判过期 / 后台刷新（2026-11-19）———————————————
     #
@@ -939,6 +946,12 @@ class HxcsWorker:
         return integ_dir.parent / "github-stars.json"
 
     def _registry_repos(self) -> dict[str, str]:
+        # 1.0.22：catalog_list 解析 idx 时会填 _repos_cache，后台刷新直接
+        # 复用（0 次网络）。缓存缺失（worker 刚启动、还没人打开过商店）才
+        # 回落网络拉取 —— 那条路径本就该少见：pending 只由 catalog_list 置位。
+        cached = getattr(self, "_repos_cache", None)
+        if cached:
+            return cached
         url = self.registry_url.rstrip("/") + "/index.json"
         raw = self._http_get(url, max_bytes=1 << 20)
         reg = json.loads(raw)
@@ -1103,11 +1116,9 @@ class HxcsWorker:
 
     async def dispatch(self, request: dict[str, Any]) -> dict[str, Any]:
         op = request.get("op")
-        # 惰性星数刷新：上一个请求标记了 pending 才在**这次**空闲点执行。
-        # 放在最前面而不是 catalog_list 里，是为了保证「谁打开商店谁就等
-        # 10 秒打 GitHub」这件事不再发生 —— 见 _refresh_github_stars 上方注释。
-        if op not in ("prepare", "shutdown"):
-            self._stars_tick()
+        # 星数刷新已改为 main() 里的后台 asyncio 任务（见 star_ticker）：
+        # dispatch 里绝不做任何网络刷新 —— 1.0.21 的惰性 tick 放在这里，
+        # 冷缓存时实测仍把下一个 catalog_list 拖到 29.6s（贴着平台 30s 上限）。
         if op == "prepare":
             self.generation = int(request["generation"])
             root = Path(request["root"])
@@ -1236,9 +1247,31 @@ def _coerce_input(user_input: Any, constraints: dict[str, tuple[tuple[Any, ...],
     return out
 
 
+async def star_ticker(worker: "HxcsWorker") -> None:
+    """星数后台刷新（1.0.22）。
+
+    为什么用 asyncio.to_thread 而不是在 dispatch 里做（1.0.21 的教训）：
+    dispatch 里的刷新（哪怕"惰性"）都会阻塞某一个真实请求 —— 冷缓存实测
+    29.6s，贴着平台 30s RPC 上限。后台线程在事件循环等待下一行请求的空档
+    跑网络 I/O，dispatch 与它并行，互不阻塞。刷新绝不写 stdout（管道是
+    平台按行读 JSON 的唯一通道，线程写会串包 —— 这也是不能用 threading
+    随便起线程写响应的原因；这里线程只做网络与内存写入，stdout 只有主循环写）。
+    """
+    while True:
+        await asyncio.sleep(5)
+        if not getattr(worker, "_gh_stars_pending", False):
+            continue
+        worker._gh_stars_pending = False
+        try:
+            await asyncio.to_thread(worker._refresh_github_stars)
+        except Exception:
+            pass  # 星数是装饰性数据，任何失败都静默留待下一轮
+
+
 async def main() -> None:
     worker = HxcsWorker()
     loop = asyncio.get_event_loop()
+    ticker = loop.create_task(star_ticker(worker))
     while line := await asyncio.to_thread(sys.stdin.readline):
         try:
             request = json.loads(line)
