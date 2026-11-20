@@ -1,6 +1,6 @@
 {
   "registry_version": "1",
-  "updated_at": "2026-11-19T09:00:34Z",
+  "updated_at": "2026-11-20T06:00:00Z",
   "trust_root": {
     "key_id": "hxcs-community",
     "public_key_b64": "sIj14U1dua4pFbC9/PZN7ehtmI/ICHlO6CS1SMkMXbI=",
@@ -31,10 +31,10 @@
     {
       "plugin_id": "homex.xiaomi_miot",
       "name": "HX-MI",
-      "version": "2.0.0-alpha.159",
+      "version": "2.0.0-alpha.161",
       "type": "prebuilt",
-      "description": "小米米家设备接入：账号登录、云端同步、局域网探测、多账号管理。",
-      "package_url": "plugins/hx-mi/releases/homex.xiaomi_miot-2.0.0-alpha.159.hpkg",
+      "description": "接入小米米家设备：多账号登录与 Token 自动续期（过期自动重登）、云端设备同步、局域网直连控制、设备健康巡检、红外遥控学习与下发。",
+      "package_url": "plugins/hx-mi/releases/homex.xiaomi_miot-2.0.0-alpha.161.hpkg",
       "source_repo": "https://github.com/1169892406/HX-MI",
       "license": "MIT",
       "publisher": {
@@ -58,7 +58,7 @@
         "event.publish",
         "event.subscribe"
       ],
-      "package_sha256": "46042acc7b1c6d404a6612799d33a2e711a3700ad496d2baf0c0edba289ee86b",
+      "package_sha256": "8dc82a41c379b38c68262b26e0e176aca0216540dc6346982d4708b9f858c42b",
       "github_stars": 1
     },
     {
