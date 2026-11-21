@@ -1,6 +1,6 @@
 {
   "registry_version": "1",
-  "updated_at": "2026-11-21T10:43:07Z",
+  "updated_at": "2026-11-21T10:50:57Z",
   "trust_root": {
     "key_id": "hxcs-community",
     "public_key_b64": "sIj14U1dua4pFbC9/PZN7ehtmI/ICHlO6CS1SMkMXbI=",
@@ -83,10 +83,10 @@
     {
       "plugin_id": "homex.hxcs",
       "name": "HXCS 社区商店",
-      "version": "1.0.23",
+      "version": "1.0.24",
       "type": "prebuilt",
       "description": "HOMEX Community Store：社区插件商店 + HA 兼容运行时。安装后在配置页开启「社区插件」显示社区注册表中的第三方插件；开启「兼容 HA 插件」后支持加载社区注册表中的 HA 集成。",
-      "package_url": "plugins/hxcs/releases/homex.hxcs-1.0.23.hpkg",
+      "package_url": "plugins/hxcs/releases/homex.hxcs-1.0.24.hpkg",
       "source_repo": "https://github.com/1169892406/HXCS",
       "license": "MIT",
       "github_stars": 1,
@@ -98,7 +98,7 @@
         "network.outbound",
         "config.read"
       ],
-      "package_sha256": "511d6da06c843a87e54c896cd16d55416bfc659f0a42f1ca5eb8bd89d1867b42"
+      "package_sha256": "2ca7bae477f256bd1a9db0b3810e7a814f3b3ea086697581027009a004307c10"
     },
     {
       "plugin_id": "hx.mqtt_broker",
