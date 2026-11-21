@@ -277,6 +277,19 @@ def _flow_result_to_json(result: dict[str, Any]) -> tuple[dict[str, Any], dict[s
     return out, coerce
 
 
+# 注册表地址（2026-11-21）。
+#
+# 默认指向**独立仓库** HXCS-Registry：发插件版本只需写那个仓库，
+# 不会被 HXCS 源码仓库的发布节奏拖住。
+DEFAULT_REGISTRY_URL = "https://raw.githubusercontent.com/1169892406/HXCS-Registry/main"
+
+# 历史上的默认值（不是用户选择）：解析到它就自动升级到 DEFAULT_REGISTRY_URL。
+LEGACY_REGISTRY_URLS = {
+    "https://raw.githubusercontent.com/1169892406/HXCS/main",
+    "https://raw.githubusercontent.com/1169892406/HXCS/master",
+}
+
+
 class HxcsWorker:
     def __init__(self) -> None:
         self.runtime: IntegrationRuntime | None = None
@@ -324,9 +337,20 @@ class HxcsWorker:
         # 注册表更新被源码的推送权限、发布节奏一起拖住，而这两件事本来就无关。
         # 拆开后：发插件 = 只写 HXCS-Registry；改 HXCS 源码 = 只写源码仓库。
         #
-        # 旧地址仍然可用（本行只是"新装默认值"）。已装实例的 registry_url 存在
-        # 安装配置里，不会被这行改变 —— 需要时在配置页改一次即可。
-        return str(self._cfg("registry_url", "https://raw.githubusercontent.com/1169892406/HXCS-Registry/main"))
+        # ## 已装实例的旧默认值要**自动跟随**（2026-11-21 用户报「注册地址错误」）
+        #
+        # manifest 的 schema 默认值只影响新装实例；已装实例把旧地址存进了安装配置，
+        # 于是 1.0.22 的用户看到的仍是源码仓库地址（`.../HXCS/main`）—— 用户看到
+        # 的就是"注册地址是错的"。而那个地址**不是用户的选择**，是我们当初写下的
+        # 默认值，所以这里按"值等于旧默认"识别并升级到新地址（等价于迁移）。
+        #
+        # 只认**完全相等**的旧默认：用户自己填过的任何其它地址原样使用，不猜。
+        current = str(self._cfg("registry_url", "") or "").strip().rstrip("/")
+        if current in LEGACY_REGISTRY_URLS:
+            return DEFAULT_REGISTRY_URL
+        if current:
+            return current
+        return DEFAULT_REGISTRY_URL
 
     # —— HTTP 工具（Python 直连，不走宿主 session）—————————————————
 

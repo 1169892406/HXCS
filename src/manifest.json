@@ -3,7 +3,7 @@
   "api_version": "2",
   "plugin_id": "homex.hxcs",
   "name": "HXCS 社区商店",
-  "version": "1.0.22",
+  "version": "1.0.23",
   "type": "service_integration",
   "runtime": "python",
   "publisher": {
@@ -40,7 +40,7 @@
       "registry_url": {
         "type": "string",
         "format": "uri",
-        "default": "https://raw.githubusercontent.com/1169892406/HXCS/main",
+        "default": "https://raw.githubusercontent.com/1169892406/HXCS-Registry/main",
         "title": "注册表地址"
       },
       "proxy_url": {
